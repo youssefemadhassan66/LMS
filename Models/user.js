@@ -1,10 +1,7 @@
 import mongoose from "mongoose";
-import validator, { trim } from 'validator'
+import validator from 'validator'
 import {ComparePasswordHelper,hashPasswordHelper} from "../Utilities/HashHelper.js"
-import crypto from 'crypto'
-import { type } from "os";
-import { kMaxLength } from "buffer";
-import { compare } from "bcryptjs";
+
 
 const schema = mongoose.Schema
 
@@ -13,8 +10,8 @@ const userSchema = new schema({
         type:string,
         required:true,
         trim:true,
-        validator:{
-            validator(value){
+        validate:{
+            validate(value){
                 return validator.isAlpha(value);
             },
             message:"Invalid Name , Name should only contain letters"
@@ -32,8 +29,8 @@ const userSchema = new schema({
         required:true,
         unique:true,
         lowercase:true,
-        validator: {
-            validator(value){
+        validate: {
+            validate(value){
                 return validator.isEmail(value)
             },
             message:"Invalid Email"
@@ -80,12 +77,12 @@ userSchema.pre('save',async function(){
     if(!this.isModified("password")){
        return
     }
-    this.password = hashPasswordHelper(this.password)
+    this.password = await hashPasswordHelper(this.password)
 })
 
 
 userSchema.methods.MatchUserPassword = async function (CandidatePassword) {
-    return ComparePasswordHelper(CandidatePassword,this.password);
+    return await ComparePasswordHelper(CandidatePassword,this.password);
 }
 
 
