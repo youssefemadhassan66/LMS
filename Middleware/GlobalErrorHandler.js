@@ -1,5 +1,84 @@
+import { log } from "winston";
 import AppErrorHelper from "../Utilities/AppErrorHelper";
 import CatchAsync from "../Utilities/CatchAsync";
 import logger from "../Utilities/Logger";
 
+const HandleCastDbError = (err)=>{
+    const message =  `Invalid ${err.path} : ${err.value}`
+    return new AppErrorHelper(message,400);
+}
 
+const HandelDuplicatesError = (err)=>{
+    const field = Object.keys(err.KeyValue)[0]
+    const value = Object.keys(field)
+     const message = `Duplicated value ${value} for this key ${field} , Please use another value`
+    return new AppErrorHelper(message,400);
+}
+const HandleValidationError = (err)=>{
+
+    const errors = Object.values(err.errors).map(el=>el.message)
+    const message = `Validation Error , ${errors.join(". ")}` 
+    return new AppErrorHelper(message,400);
+
+}
+const HandleJwtError = ()=>{
+    return new AppErrorHelper("Invalid token , Please login or create an account !",401)
+}
+
+const HandleJwtExpirationError = ()=>{
+    return new AppErrorHelper("Token expired , Please login again",401)
+}
+
+const DevelopmentErrorHandler = (err,req,res)=>{
+    logger.info(err);
+    res.status(err.statusCode).json({
+        status : err.status,
+        message : err.message,
+        stack : err.stack,
+        error:err
+    })
+}
+
+const ProductionErrorHandler = (res,err)=>{
+    if(err.isOperational){
+        res.status(err.statusCode).json({
+            status:err.status,
+            message:err.message
+        })
+
+    }
+    else{
+        logger.error(err);
+           res.status(err.statusCode).json({
+            status:"Error",
+            message:"Something went wrong !"
+        })
+
+    }
+
+}
+
+const GlobalErrorHandler = (err,req,res,next)=>{
+   
+    err.status = err.status || "fail";  
+    err.statusCode = err.statusCode || "500"; 
+    
+    if(process.env.NODE_ENV === "Development"){
+        DevelopmentErrorHandler(err,req,res);
+    } 
+    else if(process.env.NODE_ENV ==="Production"){
+        const error = {...err}
+
+        if(error.name==="CastError") error = HandleCastDbError(error);
+        if (error.code === 11000) error = HandelDuplicatesError(error);
+        if (error.name === 'ValidationError')error =HandleValidationError(error);
+        if (error.name === 'JsonWebTokenError') error = HandleJwtError();
+        if (error.name === 'TokenExpiredError') error = HandleJwtExpirationError();
+
+        ProductionErrorHandler(error);
+    }
+}
+
+
+
+export default GlobalErrorHandler;
