@@ -1,8 +1,6 @@
-import jwt, { sign }  from "jsonwebtoken";
+import jwt  from "jsonwebtoken";
 
-
-
-const signAccessToken  = async(user) => {
+const signAccessToken  = (user) => {
     const accessToken =  jwt.sign(
         {id:user.id,role:user.role},
         process.env.JWT_TOKEN_SECRET,
@@ -10,19 +8,20 @@ const signAccessToken  = async(user) => {
     )
     return accessToken
 }
-const signRefreshToken = async(user) => {
-    const RefreshToken =  jwt.sign(
+const signRefreshToken = (user) => {
+    const refreshToken = jwt.sign(
         {id:user.id},
-        process.env.JWT_REFRESH_EXPIRES_IN,
-        {expiresIn:process.env.JWT_REFRESH_TOKEN_SECRET}
+        process.env.JWT_REFRESH_TOKEN_SECRET,
+        {expiresIn:process.env.JWT_REFRESH_EXPIRES_IN}
     )
-    return RefreshToken
+    return refreshToken
 }
 
-
 const generateToken = async(user)=>{
-    await signAccessToken(user);
-    await signRefreshToken(user);
+    const accessToken = await signAccessToken(user);
+    const refreshToken = await signRefreshToken(user);
+
+    return {accessToken , refreshToken} 
 }
 
 const verifyAccessToken = (accessToken) =>{

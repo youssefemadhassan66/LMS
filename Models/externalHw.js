@@ -45,12 +45,7 @@ externalHWSchema.methods.markComplete = async function () {
         this.Status == "Completed"
         this.SubmissionDate = new Date();
         this.IsSubmitted = true
-    }
-
-
-
-
-
+}
 
 
 const ExternalHW = new mongoose.model("ExternalHW",externalHWSchema);

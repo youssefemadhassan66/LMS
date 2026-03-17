@@ -48,23 +48,12 @@ const userSchema = new schema({
         enum:["instructor", "student","parent","admin"],
     },
     avatar:{
-        type:string
+        type:String
     },
     isActive:{
         type:Boolean,
         default:true
     },
-    refreshToken: 
-    {
-      type:String,
-      select:false
-    },
-    refreshTokenExpire:{
-       type:Date,
-      select:false
-    },
- 
-
 },{timestamps:true});
 
 
