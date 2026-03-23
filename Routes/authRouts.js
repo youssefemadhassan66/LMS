@@ -16,12 +16,9 @@ router.post('/login',loginController)
 router.get('/logout',logoutController)
 
 
-
-
-router.post()
-
-
-
+// Protection 
+router.use(protectionController);
+router.post('/refresh',RefreshController);
 
 export default router
 

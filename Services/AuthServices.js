@@ -1,6 +1,6 @@
 import User from "../Models/User.js";
 import Token from '../Models/Token.js'
-import AppErrorHelper from "../Utilities/AppErrorHelper";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import { ComparePasswordHelper , hashPasswordHelper } from "../Utilities/HashHelper.js";
 import { generateToken, verifyRefreshToken ,verifyAccessToken } from "../Utilities/JwtHelper.js";
 import { randomUUID } from "crypto"

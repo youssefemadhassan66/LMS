@@ -7,12 +7,12 @@ const schema = mongoose.Schema
 
 const userSchema = new schema({
     FullName:{
-        type:string,
+        type:String,
         required:true,
         trim:true,
         validate:{
-            validate(value){
-                return validator.isAlpha(value);
+            validator(value){
+                return validator.isAlpha(value, 'en-US', { ignore: ' ' });
             },
             message:"Invalid Name , Name should only contain letters"
         }
@@ -30,7 +30,7 @@ const userSchema = new schema({
         unique:true,
         lowercase:true,
         validate: {
-            validate(value){
+            validator(value){
                 return validator.isEmail(value)
             },
             message:"Invalid Email"
@@ -73,6 +73,12 @@ userSchema.pre('save',async function(){
 userSchema.methods.MatchUserPassword = async function (CandidatePassword) {
     return await ComparePasswordHelper(CandidatePassword,this.password);
 }
+
+
+
+
+
+
 
 
 
