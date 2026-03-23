@@ -2,25 +2,24 @@ import jwt  from "jsonwebtoken";
 
 const signAccessToken  = (user) => {
     const accessToken =  jwt.sign(
-        {id:user.id,role:user.role},
+        {id:user._id,role:user.role},
         process.env.JWT_TOKEN_SECRET,
-        {expiresIn:process.env.JWT_TOKEN_EXPIRES_IN}
+        {expiresIn:process.env.JWT_TOKEN_EXPIRES_IN||'30m'}
     )
     return accessToken
 }
-const signRefreshToken = (user) => {
+const signRefreshToken = (user,tokenId = null) => {
     const refreshToken = jwt.sign(
-        {id:user.id},
+        {userId:user._id,tokenId:tokenId},
         process.env.JWT_REFRESH_TOKEN_SECRET,
-        {expiresIn:process.env.JWT_REFRESH_EXPIRES_IN}
+        {expiresIn:process.env.JWT_REFRESH_EXPIRES_IN||'9d'}
     )
     return refreshToken
 }
 
-const generateToken = async(user)=>{
-    const accessToken = await signAccessToken(user);
-    const refreshToken = await signRefreshToken(user);
-
+const generateToken = (user,tokenId = null)=>{
+    const accessToken =  signAccessToken(user);
+    const refreshToken =  signRefreshToken(user,tokenId);
     return {accessToken , refreshToken} 
 }
 
@@ -32,5 +31,5 @@ const verifyRefreshToken = (refreshToken) =>{
 }
 
 export {
-    signAccessToken,signRefreshToken,generateToken,verifyAccessToken,verifyRefreshToken
+    generateToken,verifyAccessToken,verifyRefreshToken
 }
