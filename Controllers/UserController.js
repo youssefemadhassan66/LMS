@@ -5,7 +5,9 @@ import {
     getAllUsersHelper,
     getUserByIDHelper,
     UpdateUserByIDHelper,
-    SoftDeleteUserByIDHelper
+    SoftDeleteUserByIDHelper,
+    getMyStudentsHelper,
+    createUserHelper
 } from "../Services/UserServices.js";
 
 const getAllUsersController = CatchAsync(async(req,res,next)=>{
@@ -68,6 +70,23 @@ const DeleteUserController = CatchAsync(async (req, res, next) => {
     });
 });
 
+const getMyStudentsController = CatchAsync(async (req,res,next)=>{
+    
+    const parentId = req.params.id
+
+    const students = getMyStudentsHelper(parentId);
+
+    if(students.length === 0 || !students){
+        return next(new AppErrorHelper("No documents found !",404));
+    }
+
+    res.status(200).json({
+        status: "success",
+        data: students
+    });
+
+})  
+
 
 const createUserController = CatchAsync(async (req, res, next) => {
 
@@ -88,4 +107,10 @@ const createUserController = CatchAsync(async (req, res, next) => {
 
 
 
-export {getAllUsersController,createUserController,getUserController,UpdateUserController,DeleteUserController}
+export {getAllUsersController,
+    createUserController,
+    getUserController,
+    UpdateUserController,
+    DeleteUserController,
+    getMyStudentsController
+}

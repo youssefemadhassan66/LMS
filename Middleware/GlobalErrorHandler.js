@@ -9,7 +9,7 @@ const HandleCastDbError = (err)=>{
 
 const HandelDuplicatesError = (err)=>{
     const field = Object.keys(err.KeyValue)[0]
-    const value = Object.keys(field)
+    const value = err.KeyValue[field]
      const message = `Duplicated value ${value} for this key ${field} , Please use another value`
     return new AppErrorHelper(message,400);
 }
@@ -30,7 +30,7 @@ const HandleJwtExpirationError = ()=>{
 
 const DevelopmentErrorHandler = (err,req,res)=>{
     logger.info(err);
-    res.status(err.statusCode).json({
+    res.status(parseInt(err.statusCode)).json({
         status : err.status,
         message : err.message,
         stack : err.stack,
@@ -38,7 +38,7 @@ const DevelopmentErrorHandler = (err,req,res)=>{
     })
 }
 
-const ProductionErrorHandler = (res,err)=>{
+const ProductionErrorHandler = (err,req,res)=>{
     if(err.isOperational){
         res.status(err.statusCode).json({
             status:err.status,
@@ -48,7 +48,7 @@ const ProductionErrorHandler = (res,err)=>{
     }
     else{
         logger.error(err);
-           res.status(err.statusCode).json({
+           res.status(parseInt(err.statusCode)).json({
             status:"Error",
             message:"Something went wrong !"
         })
@@ -62,10 +62,13 @@ const GlobalErrorHandler = (err,req,res,next)=>{
     err.status = err.status || "fail";  
     err.statusCode = err.statusCode || "500"; 
     
-    if(process.env.NODE_ENV === "Development"){
+    // Default to Development mode if NODE_ENV is not set
+    const environment = process.env.NODE_ENV || "Development";
+    
+    if(environment === "Development"){
         DevelopmentErrorHandler(err,req,res);
     } 
-    else if(process.env.NODE_ENV ==="Production"){
+    else {
         const error = {...err}
 
         if(error.name==="CastError") error = HandleCastDbError(error);
@@ -74,7 +77,7 @@ const GlobalErrorHandler = (err,req,res,next)=>{
         if (error.name === 'JsonWebTokenError') error = HandleJwtError();
         if (error.name === 'TokenExpiredError') error = HandleJwtExpirationError();
 
-        ProductionErrorHandler(error);
+        ProductionErrorHandler(error, req, res);
     }
 }
 

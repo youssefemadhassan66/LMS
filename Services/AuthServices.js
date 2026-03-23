@@ -4,6 +4,9 @@ import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import { ComparePasswordHelper , hashPasswordHelper } from "../Utilities/HashHelper.js";
 import { generateToken, verifyRefreshToken ,verifyAccessToken } from "../Utilities/JwtHelper.js";
 import { randomUUID } from "crypto"
+
+
+
 async function SendTokenHelper(user)
 {
 
@@ -43,19 +46,25 @@ const SignUpHelper = async  (userData) => {
 const LoginHelper = async (email,password) => {
  
 
-    const user = await User.findOne({email}).select("+password");
+    const user = await User.findOne({Email:email}).select("+password");
 
-    if(!user){
-        throw new AppErrorHelper("Password doesn't match !",404);
+    await Token.deleteMany({userId:user._id,expiresAt:{$lt: new Date()}})
+    
+    const tokenCount = await Token.countDocuments({userId:user._id})
+    
+    if(tokenCount  > 3 ){
+        const oldestToken = await Token.findOne({userId:user._id }).sort({createdAt:1})
+        await Token.deleteOne({_id:oldestToken._id})
     }
-    if(! await ComparePasswordHelper(password,user.password)){
+
+    if(! await ComparePasswordHelper(password,user.password || !user)){
         throw new AppErrorHelper("User password doesn't match ",404);
     }
-
 
     return SendTokenHelper(user);
 
 }
+
 
 const refreshTokenHelper = async (cookieToken) => {
 

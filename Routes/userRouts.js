@@ -13,15 +13,17 @@ const router = express.Router()
 
 
 router.use(protectionController);
-router.use(restrictedToController("Admin"));
+router.use(restrictedToController("admin"));
 
 router.get("/",getAllUsersController);
 router.post("/",createUserController);
 
 router.route("/:id")
-.get(getAllUsersController)
+.get(getUserController)
 .patch(UpdateUserController)
 .delete(DeleteUserController);
 
 
 
+
+export default router

@@ -1,7 +1,7 @@
-import CatchAsync from '../Utilities/CatchAsync.js';
-import AppErrorHelper from '../Utilities/AppErrorHelper.js';
 import User from '../Models/User.js';
 import ApiFeatures from '../Utilities/ApiFeatures.js';
+import StudentProfile from '../Models/studentProfile.js';
+
 
 // Admin only 
 const getAllUsersHelper = async (query) => {
@@ -43,6 +43,15 @@ const createUserHelper = async(data) =>{
 }
 
 
+// parent 
+
+const getMyStudentsHelper = async(parentID)=>{
+    
+    const students = StudentProfile.find({parents:parentID}).populate('user')
+    
+    return students;
+
+}   
 
 
 export{
@@ -50,7 +59,9 @@ export{
     getUserByIDHelper,
     UpdateUserByIDHelper,
     SoftDeleteUserByIDHelper,
-    createUserHelper
+    createUserHelper,
+    // Parent 
+    getMyStudentsHelper
 }
 
 

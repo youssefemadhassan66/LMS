@@ -1,11 +1,13 @@
 class AppErrorHelper extends Error{
     constructor(message,statusCode,details = null){
+        super(message);
+        
         this.message = message;
         this.statusCode = statusCode;
         
         this.status = `${this.statusCode}`.startsWith("4") ? "Fail":"Error";
-        isOperational = true;
-        super(message);
+        this.isOperational = true;
+        
 
         this.details = details;
         this.timeStamp = new Date().toISOString();

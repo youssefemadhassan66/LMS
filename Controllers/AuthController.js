@@ -16,7 +16,7 @@ const CreateAndSendTokens = (req, res, accessToken, refreshToken) => {
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure:   isSecure,
-    sameSite: 'strict', 
+    sameSite: 'lax', 
     expires: new Date(
       Date.now() + parseInt(process.env.JWT_TOKEN_EXPIRES_IN || '15')
       * 60 * 1000  
@@ -26,7 +26,7 @@ const CreateAndSendTokens = (req, res, accessToken, refreshToken) => {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure:   isSecure,
-    sameSite: 'strict',
+    sameSite: 'lax',
     expires: new Date(
       Date.now() + parseInt(process.env.JWT_REFRESH_EXPIRES_IN || '9')
       * 24 * 60 * 60 * 1000  

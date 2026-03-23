@@ -1,15 +1,15 @@
 import express from  "express"
 import path from 'path'
+import cookieParser from "cookie-parser"
+
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const app = express();
-import authRouter from "./Routes/authRouts.js"
 import GlobalErrorHandler from './Middleware/GlobalErrorHandler.js'
-import CatchAsync from "./Utilities/CatchAsync.js";
 import AppErrorHelper from "./Utilities/AppErrorHelper.js";
-import cookieParser from "cookie-parser"
-
+import authRouter from "./Routes/authRouts.js"
+import userRouter from './Routes/userRouts.js'
 
 
 app.use(cookieParser())
@@ -21,6 +21,7 @@ app.use(express.urlencoded({ extended: true }))
 
 
 app.use('/api/v1/auth',authRouter);
+app.use('/api/v1/user',userRouter);
 
 
 app.all(/.*/, (req,res,next)=>{
