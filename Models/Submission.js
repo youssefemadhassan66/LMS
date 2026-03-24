@@ -19,8 +19,7 @@ const SubmissionSchema = mongoose.Schema({
         name:{type:String, required:true},
         url:{type:String, required:true}
     }],
-    // Add minlength validation to ensure at least one link
-    // OR add a custom validator in pre-save hook
+
     note:{
         type:String
     },

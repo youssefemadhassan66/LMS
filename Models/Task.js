@@ -34,6 +34,7 @@ const TaskSchema = new mongoose.Schema({
         enum:["Active","Done"],
         default:"Active"
     }
+    
 },{timestamps:true})
 
 

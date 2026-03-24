@@ -7,7 +7,7 @@ import { randomUUID } from "crypto"
 
 
 
-async function SendTokenHelper(user)
+async function SendTokenService(user)
 {
 
     const tokenId = randomUUID()
@@ -29,7 +29,7 @@ async function SendTokenHelper(user)
 }
 
 
-const SignUpHelper = async  (userData) => {
+const SignUpService = async  (userData) => {
     const user = {...userData}
     
     return await User.create({
@@ -43,7 +43,7 @@ const SignUpHelper = async  (userData) => {
     })
 }
 
-const LoginHelper = async (email,password) => {
+const LoginService = async (email,password) => {
  
 
     const user = await User.findOne({Email:email}).select("+password");
@@ -61,12 +61,12 @@ const LoginHelper = async (email,password) => {
         throw new AppErrorHelper("User password doesn't match ",404);
     }
 
-    return SendTokenHelper(user);
+    return SendTokenService(user);
 
 }
 
 
-const refreshTokenHelper = async (cookieToken) => {
+const refreshTokenService = async (cookieToken) => {
 
     const payload = verifyRefreshToken(cookieToken);
     const storedToken = await Token.findOne({tokenId:payload.tokenId})
@@ -86,15 +86,15 @@ const refreshTokenHelper = async (cookieToken) => {
     
     const user = await User.findById(storedToken.userId);
 
-    return SendTokenHelper(user);
+    return SendTokenService(user);
   
 }
 
-const LogOutHelper = async (userId) => {
+const LogOutService = async (userId) => {
     return await Token.deleteMany({userId:userId});
 }
 
-const ProtectionHelper = async function(req){
+const ProtectionService = async function(req){
 
     let accessToken
 
@@ -122,16 +122,16 @@ const ProtectionHelper = async function(req){
 
 }
 
-const restrictedToHelper = async function (){
+const restrictedToService = async function (){
 
 } 
 
 
 export {
-    refreshTokenHelper,
-    LogOutHelper,
-    LoginHelper,
-    SignUpHelper,
-    ProtectionHelper,
-    restrictedToHelper
+    refreshTokenService,
+    LogOutService ,
+    LoginService ,
+    SignUpService ,
+    ProtectionService ,
+    restrictedToService 
 }

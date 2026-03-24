@@ -4,7 +4,7 @@ import StudentProfile from '../Models/studentProfile.js';
 
 
 // Admin only 
-const getAllUsersHelper = async (query) => {
+const getAllUsersService = async (query) => {
     const features = new ApiFeatures(User.find({}), query)
         .filter()
         .sort()
@@ -15,12 +15,12 @@ const getAllUsersHelper = async (query) => {
     return users;
 };
 
-const getUserByIDHelper = async (id) =>{
+const getUserByIDService = async (id) =>{
     const user = await User.findById(id);
     return user;
 }
 
-const UpdateUserByIDHelper = async (id,data) =>{
+const UpdateUserByIDService = async (id,data) =>{
    const options = {
         new: true,
         runValidators: true
@@ -30,22 +30,31 @@ const UpdateUserByIDHelper = async (id,data) =>{
     return user;
 
 }
-const SoftDeleteUserByIDHelper = async (id) =>{
+const SoftDeleteUserByIDService = async (id) =>{
     const user = await User.findByIdAndUpdate(
         id,
         {isActive:false},
         {new:true});
     return user;
 }
-const createUserHelper = async(data) =>{
-    const user = await User.create(data)
-    return user;
+const createUserService = async(data) =>{
+    const user = {...data}
+    
+    return await User.create({
+        FullName: user.FullName,
+        UserName: user.UserName,
+        Email:user.Email,
+        password:user.password,
+        role:user.role,
+        avatar:user.avatar,
+        isActive:user.isActive
+    });
 }
 
 
 // parent 
 
-const getMyStudentsHelper = async(parentID)=>{
+const getMyStudentsService = async(parentID)=>{
     
     const students = StudentProfile.find({parents:parentID}).populate('user')
     
@@ -55,13 +64,13 @@ const getMyStudentsHelper = async(parentID)=>{
 
 
 export{
-    getAllUsersHelper,
-    getUserByIDHelper,
-    UpdateUserByIDHelper,
-    SoftDeleteUserByIDHelper,
-    createUserHelper,
+    getAllUsersService,
+    getUserByIDService ,
+    UpdateUserByIDService ,
+    SoftDeleteUserByIDService ,
+    createUserService ,
     // Parent 
-    getMyStudentsHelper
+    getMyStudentsService
 }
 
 

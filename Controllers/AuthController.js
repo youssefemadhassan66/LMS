@@ -2,12 +2,12 @@ import CatchAsync from '../Utilities/CatchAsync.js';
 import AppErrorHelper from '../Utilities/AppErrorHelper.js';
 
 import {    
-    refreshTokenHelper,
-    LogOutHelper,
-    LoginHelper,
-    SignUpHelper,
-    ProtectionHelper,
-    restrictedToHelper} from '../Services/AuthServices.js'
+    refreshTokenService,
+    LogOutService,
+    LoginService,
+    SignUpService,
+    ProtectionService,
+    restrictedToService} from '../Services/AuthServices.js'
 
 
 const CreateAndSendTokens = (req, res, accessToken, refreshToken) => {
@@ -17,20 +17,14 @@ const CreateAndSendTokens = (req, res, accessToken, refreshToken) => {
     httpOnly: true,
     secure:   isSecure,
     sameSite: 'lax', 
-    expires: new Date(
-      Date.now() + parseInt(process.env.JWT_TOKEN_EXPIRES_IN || '15')
-      * 60 * 1000  
-    )
+    expires: new Date(Date.now() + 120 * 60 * 1000) // 120 minutes
   });
 
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure:   isSecure,
     sameSite: 'lax',
-    expires: new Date(
-      Date.now() + parseInt(process.env.JWT_REFRESH_EXPIRES_IN || '9')
-      * 24 * 60 * 60 * 1000  
-    )
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
   });
 };
 
@@ -43,7 +37,7 @@ const signUpController = CatchAsync(async (req,res,next)=>{
     if(Object.keys(user).length === 0){
         throw new AppErrorHelper("User data is missing while signing up !")
     }
-    user =  await SignUpHelper(user);
+    user =  await SignUpService(user);
 
     res.status(201).json({
         status:'success',
@@ -59,7 +53,7 @@ const loginController = CatchAsync(async (req, res, next) => {
   if (!email || !password)
     throw new AppErrorHelper('Email and password are required', 400);
 
-  const { user, accessToken, refreshToken } = await LoginHelper(email, password);
+  const { user, accessToken, refreshToken } = await LoginService(email, password);
 
   CreateAndSendTokens(req, res, accessToken, refreshToken); 
 
@@ -71,7 +65,7 @@ const logoutController = CatchAsync(async (req, res, next) => {
   if (!req.user?._id)
     throw new AppErrorHelper('User not authenticated', 401);
 
-  await LogOutHelper(req.user._id);
+  await LogOutService(req.user._id);
 
   res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
@@ -83,11 +77,12 @@ const logoutController = CatchAsync(async (req, res, next) => {
 
 const RefreshController = CatchAsync(async (req,res,next)=>{
     const CookieToken = req.cookies.refreshToken
+    console.log(CookieToken)
     if(!CookieToken){
         throw new AppErrorHelper("No refresh token found !", 401)
     }
 
-    const {accessToken,refreshToken} = await refreshTokenHelper(CookieToken);
+    const {accessToken,refreshToken} = await refreshTokenService(CookieToken);
 
     CreateAndSendTokens(req,res,accessToken,refreshToken);
 
@@ -100,7 +95,7 @@ const RefreshController = CatchAsync(async (req,res,next)=>{
 
 const protectionController = CatchAsync(async (req,res,next)=>{
 
-    let user = await ProtectionHelper(req);
+    let user = await ProtectionService(req);
     req.user = user;
     next()
 })  

@@ -13,12 +13,11 @@ const router = express.Router()
 
 router.post('/signup',signUpController)
 router.post('/login',loginController)
-router.get('/logout',logoutController)
-
-
-// Protection 
-router.use(protectionController);
 router.post('/refresh',RefreshController);
+
+router.use(protectionController);
+
+router.get('/logout',logoutController)
 
 export default router
 
