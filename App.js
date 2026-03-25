@@ -10,7 +10,7 @@ import GlobalErrorHandler from './Middleware/GlobalErrorHandler.js'
 import AppErrorHelper from "./Utilities/AppErrorHelper.js";
 import authRouter from "./Routes/authRouts.js"
 import userRouter from './Routes/userRouts.js'
-
+import StudentProfileRouter from "./Routes/StudentProfileRouter.js";
 
 app.use(cookieParser())
 
@@ -22,6 +22,7 @@ app.use(express.urlencoded({ extended: true }))
 
 app.use('/api/v1/auth',authRouter);
 app.use('/api/v1/user',userRouter);
+app.use('/api/v1/StudentProfile',StudentProfileRouter);
 
 
 app.all(/.*/, (req,res,next)=>{

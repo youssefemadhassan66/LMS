@@ -1,10 +1,10 @@
-import StudentProfile from "../Models/studentProfile";
-import User from "../Models/User";
-import AppErrorHelper from "../Utilities/AppErrorHelper";
+import StudentProfile from "../Models/studentProfile.js";
+import User from "../Models/User.js";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 
 
 // StudentProfileServices.js
-export const createStudentProfileService = async (userId, profileData) => {
+ const createStudentProfileService = async (userId, profileData) => {
   // Validate data
   if(!userId || !profileData){
     throw new AppErrorHelper("Student information is missing ! ", 404);

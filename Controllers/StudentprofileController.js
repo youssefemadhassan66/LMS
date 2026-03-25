@@ -1,12 +1,10 @@
+import CatchAsync from '../Utilities/CatchAsync.js'
+import AppErrorHelper from '../Utilities/AppErrorHelper.js';
 import {
      getStudentProfileService,
     updateStudentProfileService,
     createStudentProfileService
 } from '../Services/studentProfileServices.js'
-
-import CatchAsync from '../Utilities/CatchAsync.js'
-import AppErrorHelper from '../Utilities/AppErrorHelper.js';
-
 
 
 
