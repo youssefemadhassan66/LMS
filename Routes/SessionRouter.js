@@ -15,10 +15,10 @@ const router = express.Router();
 
 router.use(protectionController);
 
-router.get("/:id",getSessionByIdController);
-router.get("/",getAllSessionsController);
-router.get("/student/:id",getSessionsByStudentController)
-router.get("/instructor/:id",getSessionsByInstructorController)
+router.get("/", getAllSessionsController);
+router.get("/student/:id", getSessionsByStudentController);
+router.get("/instructor/:id", getSessionsByInstructorController);
+router.get("/:id", getSessionByIdController);
 
 
 router.use(restrictedToController("admin","instructor"));

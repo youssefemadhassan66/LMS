@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
-import User from "./User.js";
 
 
 const sessionSchema = new mongoose.Schema({
