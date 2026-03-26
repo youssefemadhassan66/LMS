@@ -1,7 +1,7 @@
-import Session from "../Models/Session";
-import User from "../Models/User";
-import AppErrorHelper from "../Utilities/AppErrorHelper";
-import ApiFeatures from "../Utilities/ApiFeatures";
+import Session from "../Models/Session.js";
+import User from "../Models/User.js";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import ApiFeatures from "../Utilities/ApiFeatures.js";
 
 const createSessionService = async (data)=>{   
     
@@ -33,7 +33,7 @@ const createSessionService = async (data)=>{
         studentId:student._id,
         instructorId:instructor._id, 
         date:date,
-        StudentAttend:StudentAttend ?? true,
+        StudentAttended:StudentAttended ?? true,
     })
 }
 

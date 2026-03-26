@@ -5,6 +5,7 @@ const studentProfileSchema = new mongoose.Schema({
         type:mongoose.Schema.ObjectId,
         ref:"User",
         required:true,
+        unique:true
     },
     parents:[
         {

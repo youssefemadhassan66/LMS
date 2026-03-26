@@ -8,13 +8,11 @@ import { protectionController,restrictedToController } from "../Controllers/Auth
 
 const router = express.Router();
 
-router.use(protectionController);
+router.use(protectionController,restrictedToController("admin","parent","student"));
 
 
 router.get("/id",getStudentProfileController)
 
-
-router.use(restrictedToController("admin","parent"));
 
 router.route("/:id")
 .post(createStudentProfileController)

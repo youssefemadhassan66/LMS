@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import AppErrorHelper from "../Utilities/AppErrorHelper";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 
 
 const sessionSchema = new mongoose.Schema({
@@ -7,6 +7,7 @@ const sessionSchema = new mongoose.Schema({
     type: String,
     required: true,
     minlength: [4, "Session title have to more than 4 letters"],
+    unique:true
   },
 
   description:{
@@ -42,7 +43,7 @@ const sessionSchema = new mongoose.Schema({
   },
   StudentAttended:{
     type: Boolean,
-    default: true
+    default:true
   },
     notes:{
     type:String
@@ -58,14 +59,14 @@ const sessionSchema = new mongoose.Schema({
 },{timestamps:true});
 
 
-sessionSchema.pre('save',async function(next){
+// sessionSchema.pre('save',async function(next){
 
-  if(new Date(this.date) < new Date()){
-    throw  new AppErrorHelper("Session Date Must be in the future")
-  }
+//   if(new Date(this.date) < new Date()){
+//     throw  new AppErrorHelper("Session Date Must be in the future")
+//   }
 
-  next()
-})
+//   next()
+// })
 
 
 

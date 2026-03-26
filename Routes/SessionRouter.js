@@ -1,5 +1,5 @@
 import express from "express";
-import { protectionController,restrictedToController } from "../Controllers/AuthController";
+import { protectionController,restrictedToController } from "../Controllers/AuthController.js";
 import {
         deleteSessionByIdController,
         UpdateSessionByIdController,
@@ -30,3 +30,4 @@ router.route("/:id")
 .delete(deleteSessionByIdController)
 
 
+export default router
