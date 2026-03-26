@@ -17,12 +17,19 @@ const createSessionService = async (data)=>{
     } = data
     
     // check on instructor and student id 
+ 
 
     const student = await User.findById(studentId)
     const instructor = await User.findById(instructorId)
 
     if(!student || !instructor){
         throw new AppErrorHelper(" User not found  ! ", 404);
+    }
+   
+    
+    if(student.role !== "student" || instructor.role !== "instructor" )
+    {
+        throw  new AppErrorHelper("Wrong assignment of roles !",400);
     }
 
     return await Session.create({

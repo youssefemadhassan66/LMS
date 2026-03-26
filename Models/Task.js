@@ -7,6 +7,7 @@ const TaskSchema = new mongoose.Schema({
     title:{
         type:String,
         required:true,
+        unique:true
     },
     description:{
         type:true,
@@ -18,21 +19,23 @@ const TaskSchema = new mongoose.Schema({
     }],
     dueDate:{
         type:Date,
-        required:true
+        required:true,
     },
     session:{
         type:mongoose.Schema.ObjectId,
-        ref:"Session"
+        ref:"Session",
+        unique:true
     },
     student:{
         type:mongoose.Schema.ObjectId,
         ref:"User",
         required:true,
+
     },
     status:{
         type:String,
-        enum:["Active","Done"],
-        default:"Active"
+        enum:["pending","Done"],
+        default:"pending"
     }
     
 },{timestamps:true})

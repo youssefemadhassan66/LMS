@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import User from "./User.js";
 
 
 const sessionSchema = new mongoose.Schema({
@@ -59,14 +60,15 @@ const sessionSchema = new mongoose.Schema({
 },{timestamps:true});
 
 
-// sessionSchema.pre('save',async function(next){
+sessionSchema.pre('save',async function(next){
 
-//   if(new Date(this.date) < new Date()){
-//     throw  new AppErrorHelper("Session Date Must be in the future")
-//   }
+  const now = new Date();
+  if(this.date < now){
+    throw  new AppErrorHelper("Session Date Must be in the future",400)
+  }
 
-//   next()
-// })
+  next()
+})
 
 
 

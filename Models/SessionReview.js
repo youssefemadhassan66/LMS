@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import validator from "validator"
 
 const SessionReviewSchema = new mongoose.Schema({   
     session :{
@@ -39,10 +38,29 @@ const SessionReviewSchema = new mongoose.Schema({
         max:5,
         required:true
     },
+    coding:{
+        type:Number,
+        min:0,
+        max:5,
+        required:true
+    },
     overAllRating:{
         type:Number
     }
 },{timestamps:true})
+
+SessionReviewSchema.index({ Student: 1 });
+SessionReviewSchema.index({ createdAt: 1 });
+
+SessionReviewSchema.index(
+  { session: 1, Student: 1 },
+  { unique: true }
+);
+
+SessionReviewSchema.pre("save",function (next) {
+    this.overAllRating = (this.Behavior + this.underStanding + this.participation + this.coding) / 4;
+    next()
+})
 
  const SessionReview = mongoose.model("SessionReview",SessionReviewSchema);
  
