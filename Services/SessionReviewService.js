@@ -3,6 +3,7 @@ import User from "../Models/User";
 import Session from "../Models/Session";
 import AppErrorHelper from "../Utilities/AppErrorHelper";
 import ApiFeatures from "../Utilities/ApiFeatures";
+import mongoose from "mongoose";
 
 
 const createSessionReviewService = async (data) => {
@@ -151,22 +152,22 @@ const deleteSessionReviewByIdService = async (reviewId) => {
 const getStudentReviewStatsService = async (studentId) => {
   const stats = await SessionReview.aggregate([
     {
-      $match: { Student: mongoose.Types.ObjectId(studentId) }
+      $match:{Student:new mongoose.Types.ObjectId(studentId)}
     },
     {
-      $group: {
-        _id: "$Student",
-        avgOverall: { $avg: "$overAllRating" },
-        avgBehavior: { $avg: "$Behavior" },
-        avgUnderstanding: { $avg: "$underStanding" },
+      $group:{
+        _id : null,
+        avgOverAll:{$avg:"overAllRating"},
+        avgBehavior:{$avg:"Behavior"},
+        avgUnderstanding:{$avg:"underStanding"},
         avgParticipation: { $avg: "$participation" },
         avgCoding: { $avg: "$coding" },
-        totalSessions: { $sum: 1 }
+        Count : {$sum: 1}
       }
     }
   ]);
 
-  return stats[0] || {};
+  return stats[0] || {}
 };
 
 
@@ -180,3 +181,24 @@ export {
   deleteSessionReviewByIdService,
   getStudentReviewStatsService
 };
+
+
+
+  // const stats = await SessionReview.aggregate([
+  //   {
+  //     $match: { Student: mongoose.Types.ObjectId(studentId) }
+  //   },
+  //   {
+  //     $group: {
+  //       _id: "$Student",
+  //       avgOverall: { $avg: "$overAllRating" },
+  //       avgBehavior: { $avg: "$Behavior" },
+  //       avgUnderstanding: { $avg: "$underStanding" },
+  //       avgParticipation: { $avg: "$participation" },
+  //       avgCoding: { $avg: "$coding" },
+  //       totalSessions: { $sum: 1 }
+  //     }
+  //   }
+  // ]);
+
+  // return stats[0] || {};

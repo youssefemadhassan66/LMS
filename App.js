@@ -12,7 +12,7 @@ import authRouter from "./Routes/authRouts.js"
 import userRouter from './Routes/userRouts.js'
 import StudentProfileRouter from "./Routes/StudentProfileRouter.js";
 import SessionRouter from './Routes/SessionRouter.js';
-
+import TaskRouter from './Routes/TaskRouter.js'
 app.use(cookieParser())
 
 app.use("/uploads", express.static("uploads"))
@@ -25,6 +25,8 @@ app.use('/api/v1/auth',authRouter);
 app.use('/api/v1/user',userRouter);
 app.use('/api/v1/StudentProfile',StudentProfileRouter);
 app.use('/api/v1/session',SessionRouter);
+app.use('/api/v1/task', TaskRouter);
+
 
 
 app.all(/.*/, (req,res,next)=>{

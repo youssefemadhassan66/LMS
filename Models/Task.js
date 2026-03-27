@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import validator from "validator";
 
 
 const TaskSchema = new mongoose.Schema({
@@ -7,13 +6,12 @@ const TaskSchema = new mongoose.Schema({
     title:{
         type:String,
         required:true,
-        unique:true
     },
     description:{
-        type:true,
+        type:String,
         required:true,
     },
-    taskLink:[{
+    taskLinks:[{
         title:{type:String},
         link:{type:String}
     }],
@@ -21,24 +19,41 @@ const TaskSchema = new mongoose.Schema({
         type:Date,
         required:true,
     },
-    session:{
+    sessionId:{
         type:mongoose.Schema.ObjectId,
         ref:"Session",
-        unique:true
+
+        
     },
-    student:{
+    studentId:{
         type:mongoose.Schema.ObjectId,
         ref:"User",
         required:true,
 
     },
+    instructorId:{
+          type:mongoose.Schema.ObjectId,
+        ref:"User",
+        required:true,
+    },
     status:{
         type:String,
-        enum:["pending","Done"],
+        enum:["pending","completed","canceled"],
         default:"pending"
-    }
+    },
+
     
 },{timestamps:true})
+
+
+TaskSchema.pre(/^find/,async function(){
+  this.populate([
+    { path: 'sessionId', select: 'title description date summary' },
+    { path: 'studentId',  select: 'FullName UserName' },
+    { path: 'instructorId', select: 'FullName UserName' }
+  ]);
+    
+})
 
 
 const Task = mongoose.model("Task",TaskSchema);
