@@ -8,11 +8,6 @@ import {
 
 
 
-
-
-
-
-
 const updateStudentProfileController = CatchAsync(async(req,res,next)=>{
 
     const StudentProfile = await updateStudentProfileService(req.params.id, req.body); 

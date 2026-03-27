@@ -1,0 +1,169 @@
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import {
+    createTaskServices,
+    getAllTasksService,
+    getTaskByIdService,
+    getTasksBySessionIdService,
+    getTasksByStudentIdService,
+    getTasksStatsByStudentIdService,
+    updateTaskByIdService,
+    deleteTaskByIdService,
+    updateTaskStatusService,
+} from '../Services/TaskServices.js'
+import CatchAsync from '../Utilities/CatchAsync.js'
+import Task from "../Models/Task.js";
+
+const createTaskController = CatchAsync(async (req,res,next)=>{
+
+    const task = await createTaskServices(req.body);
+
+    res.status(201).json({
+        status:"success",
+        data:{
+            task:task,
+        }
+    })
+});
+
+const getAllTasksController = CatchAsync(async (req,res,next)=>{
+    
+
+    const tasks = await getAllTasksService(req.query); 
+
+    if(!tasks){
+        return next(new AppErrorHelper(" No tasks found ! ", 404));
+    }
+
+    res.status(200).json({
+            status:"success",
+        data:{
+            results:tasks.length,
+            tasks: tasks,
+        }
+    })
+});
+
+const getTaskByIdController = CatchAsync(async (req,res,next)=>{
+    
+    const  task = await getTaskByIdService(req.params.id);
+
+    
+    if(!task){
+        return next (new AppErrorHelper(" No task found ! ", 404));
+    }
+
+    res.status(200).json({
+            status:"success",
+        data:{
+            task: task,
+        }
+    })
+
+
+})
+
+const getTasksBySessionIdController =  CatchAsync(async (req,res,next)=>{
+    
+    const  tasks = await getTasksBySessionIdService(req.params.id,req.query);
+    
+    if(!tasks){
+        return next (new AppErrorHelper(" No tasks found ! ", 404));
+    }
+
+    res.status(200).json({
+            status:"success",
+        data:{
+            results:tasks.length,
+            tasks: tasks,
+        }
+    })
+});
+
+
+
+const getTasksByStudentIdController =  CatchAsync(async (req,res,next)=>{
+    
+    const  tasks = await getTasksByStudentIdService(req.params.id,req.query);
+    
+    if(!tasks){
+        return next(AppErrorHelper(" No tasks found ! ", 404));
+    }
+
+    res.status(200).json({
+            status:"success",
+        data:{
+            results:tasks.length,
+            tasks: tasks,
+        }
+    })
+});
+
+
+const getTasksStatsByStudentIdController = CatchAsync(async (req,res,next)=>{
+    
+    const  tasks = await getTasksStatsByStudentIdService(req.params.id);
+    
+    if(!tasks){
+        return next(AppErrorHelper(" No tasks found ! ", 404));
+    }
+
+    res.status(200).json({
+            status:"success",
+        data:{
+            
+            tasks: tasks,
+        }
+    })
+});
+
+const updateTaskByIdController =  CatchAsync(async (req,res,next)=>{
+    
+    const  tasks = await updateTaskByIdService(req.params.id,req.body);
+    
+
+    res.status(200).json({
+            status:"success",
+        data:{
+
+            tasks: tasks,
+        }
+    })
+});
+
+const deleteTaskByIdController = CatchAsync(async (req,res,next)=>{
+    
+    const  task = await deleteTaskByIdService(req.params.id);
+    
+
+    res.status(200).json({
+        status:"success",
+    })
+});
+
+
+const updateTaskStatusController =  CatchAsync(async (req,res,next)=>{
+    
+    const  task = await updateTaskStatusService(req.params.id,req.body);
+    
+
+    res.status(200).json({
+            status:"success",
+        data:{
+
+            task: task,
+        }
+    })
+});
+
+
+export {
+    createTaskController,
+    getAllTasksController,
+    getTaskByIdController,
+    getTasksBySessionIdController,
+    getTasksByStudentIdController,
+    getTasksStatsByStudentIdController,
+    updateTaskByIdController,
+    updateTaskStatusController,
+    deleteTaskByIdController
+}

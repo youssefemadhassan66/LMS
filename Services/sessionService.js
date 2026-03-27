@@ -46,7 +46,11 @@ const createSessionService = async (data)=>{
 
 const getSessionByIdService = async (SessionId) => {
     
-    const session = await Session.findById(SessionId);
+    const session = await Session.findById(SessionId).populate([
+        { path: 'studentId', select: 'name email' },
+        { path: 'instructorId', select: 'name email' }
+    ]);
+
     if(!session){
         throw new AppErrorHelper("Session not found  ! ", 404);
     }

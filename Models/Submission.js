@@ -56,7 +56,7 @@ SubmissionSchema.pre('save',async function (next) {
 
     const task = await mongoose.model('Task').findById(this.task)
     
-    // Validate Task_links has at least one link when status is Completed
+    
     if (this.status === "Completed" && (!this.Task_links || this.Task_links.length === 0)) {
         const error = new Error("At least one submission link is required when marking as Completed");
         return next(error);
