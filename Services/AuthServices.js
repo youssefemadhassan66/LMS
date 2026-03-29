@@ -45,7 +45,7 @@ const SignUpService = async  (userData) => {
 
 const LoginService = async (email,password) => {
  
-
+    console.log(email)
     const user = await User.findOne({Email:email}).select("+password");
 
     await Token.deleteMany({userId:user._id,expiresAt:{$lt: new Date()}})

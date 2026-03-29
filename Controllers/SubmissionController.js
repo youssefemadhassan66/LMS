@@ -11,7 +11,7 @@ import {
   reviewSubmissionService,
   getSubmissionStatsByStudentIdService,
   getTasksDueDateBucketsService,
-} from "../Services/submissionService.js";
+} from "../Services/SubmissionServices.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import catchAsync from "../Utilities/catchAsync.js";
 
