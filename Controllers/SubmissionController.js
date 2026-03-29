@@ -1,0 +1,226 @@
+import {
+  createSubmissionService,
+  getAllSubmissionsService,
+  getSubmissionByIdService,
+  getSubmissionsByTaskIdService,
+  getSubmissionsByStudentIdService,
+  updateSubmissionByIdService,
+  deleteSubmissionByIdService,
+  updateSubmissionStatusService,
+  submitTaskService,
+  reviewSubmissionService,
+  getSubmissionStatsByStudentIdService,
+  getTasksDueDateBucketsService,
+} from "../Services/submissionService.js";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import catchAsync from "../Utilities/catchAsync.js";
+
+// ─── Create ───────────────────────────────────────────────────────────────────
+/**
+ * POST /submissions
+ * Body: { taskId, studentId, Task_links?, note? }
+ */
+const createSubmissionController = catchAsync(async (req, res, next) => {
+  const submission = await createSubmissionService(req.body);
+
+  res.status(201).json({
+    status: "success",
+    data: { submission },
+  });
+});
+
+// ─── Read (all) ───────────────────────────────────────────────────────────────
+/**
+ * GET /submissions
+ * Supports filtering, sorting, field selection, pagination via query string
+ */
+const getAllSubmissionsController = catchAsync(async (req, res, next) => {
+  const submissions = await getAllSubmissionsService(req.query);
+
+  res.status(200).json({
+    status: "success",
+    results: submissions.length,
+    data: { submissions },
+  });
+});
+
+// ─── Read (by id) ─────────────────────────────────────────────────────────────
+/**
+ * GET /submissions/:id
+ */
+const getSubmissionByIdController = catchAsync(async (req, res, next) => {
+  const submission = await getSubmissionByIdService(req.params.id);
+
+  res.status(200).json({
+    status: "success",
+    data: { submission },
+  });
+});
+
+// ─── Read (by task) ───────────────────────────────────────────────────────────
+/**
+ * GET /submissions/task/:taskId
+ */
+const getSubmissionsByTaskIdController = catchAsync(async (req, res, next) => {
+  const submissions = await getSubmissionsByTaskIdService(
+    req.params.taskId,
+    req.query
+  );
+
+  res.status(200).json({
+    status: "success",
+    results: submissions.length,
+    data: { submissions },
+  });
+});
+
+// ─── Read (by student) ────────────────────────────────────────────────────────
+/**
+ * GET /submissions/student/:studentId
+ */
+const getSubmissionsByStudentIdController = catchAsync(async (req, res, next) => {
+  const submissions = await getSubmissionsByStudentIdService(
+    req.params.studentId,
+    req.query
+  );
+
+  res.status(200).json({
+    status: "success",
+    results: submissions.length,
+    data: { submissions },
+  });
+});
+
+// ─── Stats (by student) ───────────────────────────────────────────────────────
+/**
+ * GET /submissions/student/:studentId/stats
+ */
+const getSubmissionStatsByStudentIdController = catchAsync(async (req, res, next) => {
+  const stats = await getSubmissionStatsByStudentIdService(req.params.studentId);
+
+  res.status(200).json({
+    status: "success",
+    data: { stats },
+  });
+});
+
+// ─── Due-date buckets (by student) ───────────────────────────────────────────
+/**
+ * GET /submissions/student/:studentId/due-buckets
+ */
+const getTasksDueDateBucketsController = catchAsync(async (req, res, next) => {
+  const buckets = await getTasksDueDateBucketsService(req.params.studentId);
+
+  res.status(200).json({
+    status: "success",
+    data: { buckets },
+  });
+});
+
+// ─── Update (note / links only) ───────────────────────────────────────────────
+/**
+ * PATCH /submissions/:id
+ * Body: { Task_links?, note? }
+ */
+const updateSubmissionByIdController = catchAsync(async (req, res, next) => {
+  const submission = await updateSubmissionByIdService(req.params.id, req.body);
+
+  res.status(200).json({
+    status: "success",
+    data: { submission },
+  });
+});
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+/**
+ * DELETE /submissions/:id
+ */
+const deleteSubmissionByIdController = catchAsync(async (req, res, next) => {
+  await deleteSubmissionByIdService(req.params.id);
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});
+
+// ─── Update status ────────────────────────────────────────────────────────────
+/**
+ * PATCH /submissions/:id/status
+ * Body: { status }
+ */
+const updateSubmissionStatusController = catchAsync(async (req, res, next) => {
+  const { status } = req.body;
+
+  if (!status) {
+    return next(new AppErrorHelper("Status is required!", 400));
+  }
+
+  const submission = await updateSubmissionStatusService(req.params.id, status);
+
+  res.status(200).json({
+    status: "success",
+    data: { submission },
+  });
+});
+
+// ─── Submit task (student action) ─────────────────────────────────────────────
+/**
+ * PATCH /submissions/:id/submit
+ * Body: { links: [{ name, url }] }
+ */
+const submitTaskController = catchAsync(async (req, res, next) => {
+  const { links } = req.body;
+
+  if (!links || !Array.isArray(links) || links.length === 0) {
+    return next(new AppErrorHelper("Links array is required!", 400));
+  }
+
+  const submission = await submitTaskService(req.params.id, links);
+
+  res.status(200).json({
+    status: "success",
+    message: "Task submitted successfully!",
+    data: { submission },
+  });
+});
+
+// ─── Review submission (instructor action) ────────────────────────────────────
+/**
+ * PATCH /submissions/:id/review
+ * Body: { score?, comment? }
+ */
+const reviewSubmissionController = catchAsync(async (req, res, next) => {
+  const { score, comment } = req.body;
+
+  if (score === undefined && comment === undefined) {
+    return next(new AppErrorHelper("At least a score or comment is required!", 400));
+  }
+
+  if (score !== undefined && (score < 0 || score > 10)) {
+    return next(new AppErrorHelper("Score must be between 0 and 10!", 400));
+  }
+
+  const submission = await reviewSubmissionService(req.params.id, { score, comment });
+
+  res.status(200).json({
+    status: "success",
+    message: "Submission reviewed successfully!",
+    data: { submission },
+  });
+});
+
+export {
+  createSubmissionController,
+  getAllSubmissionsController,
+  getSubmissionByIdController,
+  getSubmissionsByTaskIdController,
+  getSubmissionsByStudentIdController,
+  getSubmissionStatsByStudentIdController,
+  getTasksDueDateBucketsController,
+  updateSubmissionByIdController,
+  deleteSubmissionByIdController,
+  updateSubmissionStatusController,
+  submitTaskController,
+  reviewSubmissionController,
+};
