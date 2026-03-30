@@ -21,6 +21,9 @@ async function SendTokenService(user)
         expiresAt:expiresAt,
         tokenId:tokenId
     })
+    
+    user.password = undefined;
+
     return{
         user,
         accessToken,
@@ -31,8 +34,8 @@ async function SendTokenService(user)
 
 const SignUpService = async  (userData) => {
     const user = {...userData}
-    
-    return await User.create({
+   
+    const newUser =  await User.create({
         FullName: user.FullName,
         UserName: user.UserName,
         Email:user.Email,
@@ -41,11 +44,13 @@ const SignUpService = async  (userData) => {
         avatar:user.avatar,
         isActive:user.isActive
     })
+    newUser.password = undefined;
+
+    return newUser;
 }
 
 const LoginService = async (email,password) => {
  
-    console.log(email)
     const user = await User.findOne({Email:email}).select("+password");
 
     await Token.deleteMany({userId:user._id,expiresAt:{$lt: new Date()}})

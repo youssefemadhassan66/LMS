@@ -57,9 +57,8 @@ SessionReviewSchema.index(
   { unique: true }
 );
 
-SessionReviewSchema.pre("save",function (next) {
+SessionReviewSchema.pre("save",function () {
     this.overAllRating = (this.Behavior + this.underStanding + this.participation + this.coding) / 4;
-    next()
 })
 
  const SessionReview = mongoose.model("SessionReview",SessionReviewSchema);
