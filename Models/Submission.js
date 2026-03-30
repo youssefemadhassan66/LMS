@@ -45,28 +45,23 @@ const SubmissionSchema = mongoose.Schema(
 );
 
 // ─── Pre-find ─────────────────────────────────────────────────────────────────
-SubmissionSchema.pre(/^find/, function (next) {
-
+SubmissionSchema.pre(/^find/, async function () {
   this.populate([
-    {path: "task",select:"title dueDate"},
-    {path: "student",select:"userName FullName"}
-]);
-
-  next();
+    { path: "task",    select: "title dueDate" },
+    { path: "student", select: "userName FullName" }
+  ]);
 });
 
 // ─── Pre-save ─────────────────────────────────────────────────────────────────
-SubmissionSchema.pre("save", async function (next) {
+SubmissionSchema.pre("save", async function () {
   const task = await mongoose.model("Task").findById(this.task);
 
-  if (!task) return next();
+  if (!task) return;
 
   if (this.status === "Completed") {
-    // Guard: links required when completing
+  
     if (!this.Task_links || this.Task_links.length === 0) {
-      return next(
-        new Error("At least one submission link is required when marking as Completed")
-      );
+      throw new Error("At least one submission link is required when marking as Completed");
     }
 
     this.SubmissionDate = new Date();
@@ -79,7 +74,7 @@ SubmissionSchema.pre("save", async function (next) {
     }
   } else if (this.status === "Pending") {
     this.SubmissionDate = undefined;
-    this.note = "Waiting for submission!";
+    this.note = "Waiting for Submission!";
   } else if (this.status === "Resubmitted") {
     
     this.note = "Please review the task and resubmit!";
@@ -103,7 +98,6 @@ SubmissionSchema.pre("save", async function (next) {
     }
   }
 
-  next();
 });
 
 // ─── Methods ──────────────────────────────────────────────────────────────────

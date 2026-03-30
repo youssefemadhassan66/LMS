@@ -13,14 +13,14 @@ import {
   getTasksDueDateBucketsService,
 } from "../Services/SubmissionServices.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
-import catchAsync from "../Utilities/catchAsync.js";
+import CatchAsync from "../Utilities/CatchAsync.js";
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 /**
  * POST /submissions
  * Body: { taskId, studentId, Task_links?, note? }
  */
-const createSubmissionController = catchAsync(async (req, res, next) => {
+const createSubmissionController = CatchAsync(async (req, res, next) => {
   const submission = await createSubmissionService(req.body);
 
   res.status(201).json({
@@ -34,7 +34,7 @@ const createSubmissionController = catchAsync(async (req, res, next) => {
  * GET /submissions
  * Supports filtering, sorting, field selection, pagination via query string
  */
-const getAllSubmissionsController = catchAsync(async (req, res, next) => {
+const getAllSubmissionsController = CatchAsync(async (req, res, next) => {
   const submissions = await getAllSubmissionsService(req.query);
 
   res.status(200).json({
@@ -48,7 +48,7 @@ const getAllSubmissionsController = catchAsync(async (req, res, next) => {
 /**
  * GET /submissions/:id
  */
-const getSubmissionByIdController = catchAsync(async (req, res, next) => {
+const getSubmissionByIdController = CatchAsync(async (req, res, next) => {
   const submission = await getSubmissionByIdService(req.params.id);
 
   res.status(200).json({
@@ -61,7 +61,7 @@ const getSubmissionByIdController = catchAsync(async (req, res, next) => {
 /**
  * GET /submissions/task/:taskId
  */
-const getSubmissionsByTaskIdController = catchAsync(async (req, res, next) => {
+const getSubmissionsByTaskIdController = CatchAsync(async (req, res, next) => {
   const submissions = await getSubmissionsByTaskIdService(
     req.params.taskId,
     req.query
@@ -78,7 +78,7 @@ const getSubmissionsByTaskIdController = catchAsync(async (req, res, next) => {
 /**
  * GET /submissions/student/:studentId
  */
-const getSubmissionsByStudentIdController = catchAsync(async (req, res, next) => {
+const getSubmissionsByStudentIdController = CatchAsync(async (req, res, next) => {
   const submissions = await getSubmissionsByStudentIdService(
     req.params.studentId,
     req.query
@@ -95,7 +95,7 @@ const getSubmissionsByStudentIdController = catchAsync(async (req, res, next) =>
 /**
  * GET /submissions/student/:studentId/stats
  */
-const getSubmissionStatsByStudentIdController = catchAsync(async (req, res, next) => {
+const getSubmissionStatsByStudentIdController = CatchAsync(async (req, res, next) => {
   const stats = await getSubmissionStatsByStudentIdService(req.params.studentId);
 
   res.status(200).json({
@@ -108,7 +108,7 @@ const getSubmissionStatsByStudentIdController = catchAsync(async (req, res, next
 /**
  * GET /submissions/student/:studentId/due-buckets
  */
-const getTasksDueDateBucketsController = catchAsync(async (req, res, next) => {
+const getTasksDueDateBucketsController = CatchAsync(async (req, res, next) => {
   const buckets = await getTasksDueDateBucketsService(req.params.studentId);
 
   res.status(200).json({
@@ -122,7 +122,7 @@ const getTasksDueDateBucketsController = catchAsync(async (req, res, next) => {
  * PATCH /submissions/:id
  * Body: { Task_links?, note? }
  */
-const updateSubmissionByIdController = catchAsync(async (req, res, next) => {
+const updateSubmissionByIdController = CatchAsync(async (req, res, next) => {
   const submission = await updateSubmissionByIdService(req.params.id, req.body);
 
   res.status(200).json({
@@ -135,7 +135,7 @@ const updateSubmissionByIdController = catchAsync(async (req, res, next) => {
 /**
  * DELETE /submissions/:id
  */
-const deleteSubmissionByIdController = catchAsync(async (req, res, next) => {
+const deleteSubmissionByIdController = CatchAsync(async (req, res, next) => {
   await deleteSubmissionByIdService(req.params.id);
 
   res.status(204).json({
@@ -149,7 +149,7 @@ const deleteSubmissionByIdController = catchAsync(async (req, res, next) => {
  * PATCH /submissions/:id/status
  * Body: { status }
  */
-const updateSubmissionStatusController = catchAsync(async (req, res, next) => {
+const updateSubmissionStatusController = CatchAsync(async (req, res, next) => {
   const { status } = req.body;
 
   if (!status) {
@@ -169,7 +169,7 @@ const updateSubmissionStatusController = catchAsync(async (req, res, next) => {
  * PATCH /submissions/:id/submit
  * Body: { links: [{ name, url }] }
  */
-const submitTaskController = catchAsync(async (req, res, next) => {
+const submitTaskController = CatchAsync(async (req, res, next) => {
   const { links } = req.body;
 
   if (!links || !Array.isArray(links) || links.length === 0) {
@@ -190,7 +190,7 @@ const submitTaskController = catchAsync(async (req, res, next) => {
  * PATCH /submissions/:id/review
  * Body: { score?, comment? }
  */
-const reviewSubmissionController = catchAsync(async (req, res, next) => {
+const reviewSubmissionController = CatchAsync(async (req, res, next) => {
   const { score, comment } = req.body;
 
   if (score === undefined && comment === undefined) {

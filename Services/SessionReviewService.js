@@ -1,8 +1,8 @@
-import SessionReview from "../Models/SessionReview";
-import User from "../Models/User";
-import Session from "../Models/Session";
-import AppErrorHelper from "../Utilities/AppErrorHelper";
-import ApiFeatures from "../Utilities/ApiFeatures";
+import SessionReview from "../Models/SessionReview.js";
+import User from "../Models/User.js";
+import Session from "../Models/Session.js";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import ApiFeatures from "../Utilities/ApiFeatures.js";
 import mongoose from "mongoose";
 
 

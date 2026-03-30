@@ -45,8 +45,7 @@ const createSubmissionService = async (data) => {
     student: studentId,
     Task_links: Task_links || [],
     note,
-    status:"pending"
-
+    status:"Pending"
   });
 
   return submission;

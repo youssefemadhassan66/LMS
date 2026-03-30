@@ -1,5 +1,6 @@
-import CatchAsync from '../Utilities/CatchAsync.js';
 import AppErrorHelper from '../Utilities/AppErrorHelper.js';
+import CatchAsync from '../Utilities/CatchAsync.js';
+
 
 import {
   refreshTokenService,
@@ -7,7 +8,6 @@ import {
   LoginService,
   SignUpService,
   ProtectionService,
-  restrictedToService,
 } from '../Services/AuthServices.js';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -34,11 +34,12 @@ const signUpController = CatchAsync(async (req, res, next) => {
   let user = { ...req.body };
 
   if (Object.keys(user).length === 0) {
-    // ✅ Fix #1: added missing status code 400
+
     throw new AppErrorHelper('User data is missing while signing up!', 400);
   }
 
   user = await SignUpService(user);
+  
 
   res.status(201).json({
     status: 'success',
@@ -46,19 +47,17 @@ const signUpController = CatchAsync(async (req, res, next) => {
   });
 });
 
+
 // ─── Login ────────────────────────────────────────────────────────────────────
 const loginController = CatchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
-  // ✅ Fix #3 & #4: validate inputs BEFORE calling the service,
-  // so we never reach CreateAndSendTokens with missing data
   if (!email || !password) {
     return next(new AppErrorHelper('Email and password are required!', 400));
   }
 
   const { user, accessToken, refreshToken } = await LoginService(email, password);
 
-  // ✅ Fix #2: added missing `new` keyword
   if (!user || !accessToken || !refreshToken) {
     return next(new AppErrorHelper('Login failed, please try again!', 500));
   }
@@ -98,7 +97,6 @@ const RefreshController = CatchAsync(async (req, res, next) => {
 
   CreateAndSendTokens(req, res, accessToken, refreshToken);
 
-  // ✅ Fix #5: changed 201 → 200 (refresh is not a resource creation)
   res.status(200).json({ status: 'success' });
 });
 

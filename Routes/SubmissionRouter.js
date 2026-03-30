@@ -29,7 +29,7 @@ router.get("/task/:taskId", getSubmissionsByTaskIdController);
 
 // ⚠️ Specific student sub-routes must come BEFORE /student/:studentId
 router.get("/student/:studentId/stats",       getSubmissionStatsByStudentIdController);
-router.get("/student/:studentId/due-buckets", getTasksDueDateBucketsController);
+router.get("/student/:studentId/due-buckets", getTasksDueDateBucketsController); //Check on this function Later
 router.get("/student/:studentId",             getSubmissionsByStudentIdController);
 
 router.get("/:id", getSubmissionByIdController);
@@ -44,7 +44,7 @@ router.use(restrictedToController("admin", "instructor"));
 // Create a submission
 router.post("/", createSubmissionController);
 
-// Update note / links
+// Update Submission
 router.patch("/:id", updateSubmissionByIdController);
 
 // Update status manually
