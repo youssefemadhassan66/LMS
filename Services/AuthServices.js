@@ -48,27 +48,48 @@ const SignUpService = async  (userData) => {
 
     return newUser;
 }
+const LoginService = async (email, password) => {
+  return withTransaction(async (session) => {
 
-const LoginService = async (email,password) => {
- 
-    const user = await User.findOne({Email:email}).select("+password");
+    const user = await User
+      .findOne({ Email: email })
+      .select("+password")
+      .session(session);
 
-    await Token.deleteMany({userId:user._id,expiresAt:{$lt: new Date()}})
-    
-    const tokenCount = await Token.countDocuments({userId:user._id})
-    
-    if(tokenCount  > 3 ){
-        const oldestToken = await Token.findOne({userId:user._id }).sort({createdAt:1})
-        await Token.deleteOne({_id:oldestToken._id})
+    if (!user) {
+      throw new AppErrorHelper("User not found", 404);
     }
 
-    if(! await ComparePasswordHelper(password,user.password || !user)){
-        throw new AppErrorHelper("User password doesn't match ",404);
+    await Token.deleteMany(
+      { userId: user._id, expiresAt: { $lt: new Date() } },
+      { session }
+    );
+
+    const tokenCount = await Token.countDocuments(
+      { userId: user._id }
+    ).session(session);
+
+    if (tokenCount > 3) {
+      const oldestToken = await Token
+        .findOne({ userId: user._id })
+        .sort({ createdAt: 1 })
+        .session(session);
+
+      await Token.deleteOne(
+        { _id: oldestToken._id },
+        { session }
+      );
     }
 
-    return SendTokenService(user);
+    if (!(await ComparePasswordHelper(password, user.password))) {
+      throw new AppErrorHelper("User password doesn't match", 404);
+    }
 
-}
+    const result = await SendTokenService(user, session);
+
+    return result;
+  });
+};
 
 
 const refreshTokenService = async (cookieToken) => {

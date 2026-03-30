@@ -188,7 +188,7 @@ const submitTaskController = CatchAsync(async (req, res, next) => {
 // ─── Review submission (instructor action) ────────────────────────────────────
 /**
  * PATCH /submissions/:id/review
- * Body: { score?, comment? }
+
  */
 const reviewSubmissionController = CatchAsync(async (req, res, next) => {
   const { score, comment } = req.body;

@@ -1,12 +1,16 @@
 import "dotenv/config"
 import app from "./App.js"
 import Db_Connection from "./Configs/DBConfig.js"
+import { validateEnv } from "./Configs/validateEnv.js"
 
 
 const PortNumber = process.env.PORT
 
 async function StartServer() {
     try {
+        // Validate environment variables before starting
+        validateEnv();
+        
         await Db_Connection();
         
          const server  = app.listen(PortNumber,()=>{
