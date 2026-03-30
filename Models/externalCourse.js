@@ -6,8 +6,10 @@ const externalCourseSchema = new mongoose.Schema({
         type:String
     },
     subject:{
-        type:String,
-        required:true
+       type: String,
+        required: true,
+        trim: true,
+        minlength: 3
     },
     createdBy : {
         type:mongoose.Schema.ObjectId,
@@ -22,19 +24,23 @@ const externalCourseSchema = new mongoose.Schema({
 
 },{timestamps:true})
 
+externalCourseSchema.index({ student: 1 });
+externalCourseSchema.index({ createdBy: 1 });
 
 externalCourseSchema.pre('save' , async function () {
+
+  
+
     if (!this.color) {
         const randomColor ="#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
 
         this.color = randomColor;
    }
 
-  next();
-    
+    return    
 })
 
-const ExternalCourse = new mongoose.model("ExternalCourse",externalCourseSchema);
+const ExternalCourse = mongoose.model("ExternalCourse",externalCourseSchema);
 
 
 export default ExternalCourse
