@@ -1,25 +1,23 @@
+import mongoose from "mongoose";
 import StudentProfile from "../Models/studentProfile.js";
 import User from "../Models/User.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import ApiFeatures from "../Utilities/ApiFeatures.js";
 
 
-// StudentProfileServices.js
  const createStudentProfileService = async (userId, profileData) => {
-  // Validate data
+  
   if(!userId || !profileData){
     throw new AppErrorHelper("Student information is missing ! ", 404);
   }
 
-  // Destructure profileData
   const { parents, grade, notes } = profileData;
 
-  // Check user exists
   const user = await User.findById(userId);
   if(!user || !user.isActive){
     throw new AppErrorHelper("User not found ! ", 404);
   }
 
-  // Create profile with relationships
   const studentProfile = await StudentProfile.create({
     user: user._id,
     parents: parents || [],
@@ -64,8 +62,80 @@ import AppErrorHelper from "../Utilities/AppErrorHelper.js";
   return profile;
 }
 
+
+const getMyStudentProfileServiceById = async (parent, childId) => {
+
+  if (parent.role === "parent") {
+
+    const profile = await StudentProfile
+      .findOne({
+        user: childId,
+        parents: parent._id
+      })
+      .populate("user", "FullName UserName email")
+      .lean();
+
+    if (!profile) {
+      throw new AppErrorHelper("Child not found or not authorized!", 404);
+    }
+
+    return profile;
+  }
+
+  throw new AppErrorHelper("Not allowed!", 403);
+};
+
+
+const getMyStudentProfileService = async (user) => {
+
+  if (user.role === "student") {
+
+    const profile = await StudentProfile
+      .findOne({ user: user._id })
+      .populate("user", "FullName UserName email");
+
+    if (!profile) {
+      throw new AppErrorHelper("Profile not found!", 404);
+    }
+
+    return profile;
+  }
+
+  else if (user.role === "parent") {
+
+    const profiles = await StudentProfile
+      .find({ parents: user._id })
+      .populate("user", "FullName UserName email");
+
+    if (profiles.length === 0) {
+      throw new AppErrorHelper("No children found!", 404);
+    }
+
+    return profiles;
+  }
+
+  else {
+    throw new AppErrorHelper("Not allowed!", 403);
+  }
+};
+
+
+const getAllStudentProfilesService = async(QueryString)=>{
+  const features= new ApiFeatures(StudentProfile.find({}),QueryString)
+  .filter()
+  .sort()
+  .fields()
+  .pagination()
+
+  return await features.mongooseQuery;
+
+}
+
 export {
     getStudentProfileService,
     updateStudentProfileService,
-    createStudentProfileService
+    createStudentProfileService,
+    getMyStudentProfileService,
+    getMyStudentProfileServiceById,
+    getAllStudentProfilesService
 }

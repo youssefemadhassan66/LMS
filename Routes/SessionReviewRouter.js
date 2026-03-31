@@ -33,7 +33,6 @@ router.get("/student/:id/stats", getStudentReviewStatsController);
 // Get reviews by instructor
 router.get("/instructor/:id", getSessionReviewsByInstructorController);
 
-//  Restricted routes (only instructor/admin can create/update/delete)
 router.use(restrictedToController("admin", "instructor"));
 
 // Create review
