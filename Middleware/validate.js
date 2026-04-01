@@ -1,7 +1,6 @@
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 
 /**
- * Middleware factory for validating request data with Joi schemas
  * @param {Object} schema - Joi validation schema
  * @param {String} source - Source of data to validate ('body', 'params', 'query')
  * @returns {Function} Express middleware function
