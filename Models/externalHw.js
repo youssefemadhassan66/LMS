@@ -11,16 +11,12 @@ const externalHWSchema = new mongoose.Schema({
     dueDate:{
         type:Date,
     },
-    Status:{
-        type:String,
-        enum:["Finished","Pending","Canceled"],
-        default:"Pending"
-    },
-    SubmissionDate:{
+    submissionDate:{
         type:Date
     },
     IsSubmitted:{
         type:Boolean,
+        default:false,
     },
     notes:{
         type:String
@@ -30,7 +26,11 @@ const externalHWSchema = new mongoose.Schema({
         type:mongoose.Schema.ObjectId,
         ref:"ExternalCourse",
     },
-    Status:{
+    submissionLinks : [{
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+    }],
+    status:{
         type:String,
         enum:["Completed","Pending","Canceled","Late submission"],
         default:"Pending"
@@ -40,6 +40,22 @@ const externalHWSchema = new mongoose.Schema({
 
 },{timestamps:true})
 
+externalHWSchema.pre("save" , function () {
+    if(this.status === "Completed"){
+        this.IsSubmitted = true;
+        
+    }
+    
+} )
+
+externalHWSchema.pre(/^find/,function(){
+    this.populate({
+        path:"externalCourse" , select:"student subject teacher",
+        populate:{
+            path:"student" , select:"FullName UserName "
+        }
+    })
+})
 
 externalHWSchema.methods.markComplete = async function () {
         this.Status == "Completed"
