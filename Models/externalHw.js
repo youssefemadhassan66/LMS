@@ -1,6 +1,4 @@
 import mongoose from "mongoose";
-import validator from "validator"
-
 const externalHWSchema = new mongoose.Schema({
     title:{
         type:String
@@ -14,7 +12,7 @@ const externalHWSchema = new mongoose.Schema({
     submissionDate:{
         type:Date
     },
-    IsSubmitted:{
+    isSubmitted:{
         type:Boolean,
         default:false,
     },
@@ -27,14 +25,20 @@ const externalHWSchema = new mongoose.Schema({
         ref:"ExternalCourse",
     },
     submissionLinks : [{
-        name: { type: String, required: true },
-        url: { type: String, required: true },
+        name: { type: String },
+        url: { type: String, },
     }],
     status:{
         type:String,
         enum:["Completed","Pending","Canceled","Late submission"],
         default:"Pending"
     },
+    category: {
+        type: String,
+        enum: ["Essay", "Project", "Quiz", "Lab", "Presentation", "Other"],
+        default:"project"
+    },
+   
 
     
 
@@ -42,9 +46,34 @@ const externalHWSchema = new mongoose.Schema({
 
 externalHWSchema.pre("save" , function () {
     if(this.status === "Completed"){
-        this.IsSubmitted = true;
         
+        if(!this.submissionLinks || this.submissionLinks.length == 0){
+           throw new Error("At least one submission link is required when marking as Completed");
+        }
+
+        this.isSubmitted = true;
+
+        this.submissionDate = new Date();
+        this.notes = `Great work submitted before due date ${this.dueDate}`;
+        
+        if(this.submissionDate > this.dueDate){
+            this.status = "Late submission"
+            this.notes = "submitted late"
+        }
+
     }
+
+     
+
+    else if (this.status == "Pending"){
+        this.submissionDate = undefined;
+        this.notes = "Waiting for submission"
+    }
+        
+        
+
+
+    
     
 } )
 
@@ -58,9 +87,9 @@ externalHWSchema.pre(/^find/,function(){
 })
 
 externalHWSchema.methods.markComplete = async function () {
-        this.Status == "Completed"
-        this.SubmissionDate = new Date();
-        this.IsSubmitted = true
+        this.status = "Completed";
+        this.submissionDate = new Date();
+        this.isSubmitted = true;
 }
 
 

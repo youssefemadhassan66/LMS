@@ -30,3 +30,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+
+#files 
+/additional-features

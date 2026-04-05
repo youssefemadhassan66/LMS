@@ -20,6 +20,7 @@ import SessionRouter from "./Routes/SessionRouter.js";
 import TaskRouter from "./Routes/TaskRouter.js";
 import SubmissionRouter from "./Routes/SubmissionRouter.js";
 import SessionReviewRouter from './Routes/SessionReviewRouter.js'
+import externalHWRouter from "./Routes/ExternalHwRouter.js";
 
 const app = express();
 
@@ -92,6 +93,8 @@ app.use("/api/v1/session",        SessionRouter);
 app.use("/api/v1/task",           TaskRouter);
 app.use("/api/v1/submission",     SubmissionRouter);
 app.use("/api/v1/sessionReview",     SessionReviewRouter);
+app.use("/api/v1/external-hw", externalHWRouter);
+
 
 // ─── 10. Unhandled Routes ─────────────────────────────────────────────────────
 app.all(/.*/, (req, res, next) => {
