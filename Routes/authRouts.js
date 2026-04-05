@@ -1,34 +1,136 @@
 import express from "express";
 
-import {    signUpController,
-    loginController,
-    RefreshController,
-    logoutController,
-    protectionController,
-    restrictedToController,
-} from '../Controllers/AuthController.js'
+import { signUpController, loginController, RefreshController, logoutController, protectionController, restrictedToController } from "../Controllers/AuthController.js";
 
+const router = express.Router();
 
-const router = express.Router()
+/**
+ * @swagger
+ * /api/v1/auth/signup:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: User's full name
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *                 description: User's password
+ *               role:
+ *                 type: string
+ *                 enum: [admin, instructor, parent, student]
+ *                 default: student
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Bad request - validation error or user already exists
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/signup", signUpController);
 
-router.post('/signup',signUpController)
-router.post('/login',loginController)
-router.post('/refresh',RefreshController);
+/**
+ * @swagger
+ * /api/v1/auth/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       401:
+ *         description: Invalid credentials
+ *       404:
+ *         description: User not found
+ */
+router.post("/login", loginController);
+
+/**
+ * @swagger
+ * /api/v1/auth/refresh:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Auth]
+ *     description: Use refresh token to get a new access token
+ *     responses:
+ *       200:
+ *         description: Token refreshed successfully
+ *       401:
+ *         description: Refresh token expired or invalid
+ */
+router.post("/refresh", RefreshController);
 
 router.use(protectionController);
 
-router.get('/logout',logoutController)
+/**
+ * @swagger
+ * /api/v1/auth/logout:
+ *   get:
+ *     summary: Logout user
+ *     tags: [Auth]
+ *     description: Logout user and invalidate refresh token
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ */
+router.get("/logout", logoutController);
 
-export default router
-
-
-
-
-
-
-
-
-
-
-
-
+export default router;
