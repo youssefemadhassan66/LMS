@@ -7,6 +7,8 @@ import rateLimit from "express-rate-limit";
 import cors from "cors";
 import compression from "compression";
 import morgan from "morgan";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./swagger.config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,8 +21,8 @@ import StudentProfileRouter from "./Routes/StudentProfileRouter.js";
 import SessionRouter from "./Routes/SessionRouter.js";
 import TaskRouter from "./Routes/TaskRouter.js";
 import SubmissionRouter from "./Routes/SubmissionRouter.js";
-import SessionReviewRouter from './Routes/SessionReviewRouter.js'
-import externalHWRouter from "./Routes/ExternalHwRouter.js";
+import SessionReviewRouter from "./Routes/SessionReviewRouter.js";
+import externalHWRouter from "./Routes/ExternalCourseHwRouter.js";
 
 const app = express();
 
@@ -32,7 +34,7 @@ app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
     credentials: true,
-  })
+  }),
 );
 
 // ─── 3. Rate Limiting ─────────────────────────────────────────────────────────
@@ -85,23 +87,47 @@ app.use(compression());
 // ─── 8. Static Files ─────────────────────────────────────────────────────────
 app.use("/uploads", express.static("uploads"));
 
-// ─── 9. Routes ───────────────────────────────────────────────────────────────
-app.use("/api/v1/auth",           authRouter);
-app.use("/api/v1/user",           userRouter);
+// ─── 9. Swagger Documentation ───────────────────────────────────────────────
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "LMS API Docs",
+    customfavIcon: "/favicon.ico",
+  }),
+);
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
+
+// ─── 10. Health Check ────────────────────────────────────────────────────────
+app.get("/api/v1/health", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "Server is running",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+// ─── 11. Routes ───────────────────────────────────────────────────────────────
+app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/user", userRouter);
 app.use("/api/v1/StudentProfile", StudentProfileRouter);
-app.use("/api/v1/session",        SessionRouter);
-app.use("/api/v1/task",           TaskRouter);
-app.use("/api/v1/submission",     SubmissionRouter);
-app.use("/api/v1/sessionReview",     SessionReviewRouter);
+app.use("/api/v1/session", SessionRouter);
+app.use("/api/v1/task", TaskRouter);
+app.use("/api/v1/submission", SubmissionRouter);
+app.use("/api/v1/sessionReview", SessionReviewRouter);
 app.use("/api/v1/external-hw", externalHWRouter);
 
-
-// ─── 10. Unhandled Routes ─────────────────────────────────────────────────────
+// ─── 12. Unhandled Routes ─────────────────────────────────────────────────────
 app.all(/.*/, (req, res, next) => {
   next(new AppErrorHelper(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-// ─── 11. Global Error Handler ────────────────────────────────────────────────
+// ─── 13. Global Error Handler ────────────────────────────────────────────────
 app.use(GlobalErrorHandler);
 
 export default app;
