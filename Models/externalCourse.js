@@ -29,7 +29,6 @@ externalCourseSchema.index({ createdBy: 1 });
 
 externalCourseSchema.pre('save' , async function () {
 
-  
 
     if (!this.color) {
         const randomColor ="#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");

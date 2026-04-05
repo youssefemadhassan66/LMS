@@ -42,6 +42,7 @@ const getMyExternalCourseByIdService  = async(user,courseId)=>{
     if(!exCourse){
         throw new AppErrorHelper("Course not found" , 404);
     }
+    
     if(user.role === "student"){
         if(exCourse.student._id.toString()  !== user.id){
             throw new AppErrorHelper("Not allowed !" , 403);
