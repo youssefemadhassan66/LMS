@@ -1,106 +1,79 @@
-import Task from '../Models/Task.js';
-import ApiFeatures from "../Utilities/ApiFeatures.js"
-import AppErrorHelper from '../Utilities/AppErrorHelper.js';
-import Session from '../Models/Session.js';
-import User from '../Models/User.js'
-import mongoose from 'mongoose';
+import Task from "../Models/Task.js";
+import ApiFeatures from "../Utilities/ApiFeatures.js";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import Session from "../Models/Session.js";
+import User from "../Models/User.js";
+import mongoose from "mongoose";
 
+const createTaskServices = async (data) => {
+  if (!data) {
+    throw new AppErrorHelper("Data is missing ! ", 404);
+  }
 
+  const { sessionId, studentId, instructorId, title, dueDate, taskLinks, description, status } = data;
 
-const createTaskServices = async (data) =>{
+  const student = await User.findById(studentId);
+  const instructor = await User.findById(instructorId);
+  const session = await Session.findById(sessionId);
 
-    if(!data ){
-       throw new AppErrorHelper("Data is missing ! " , 404);
-    }
+  if (!student || !instructor) {
+    throw new AppErrorHelper(" User not found  ! ", 404);
+  }
 
-    const {
-    sessionId,
-    studentId,
-    instructorId,
-    title,
-    dueDate,
-    taskLinks,
-    description,
-    status
-  } = data;
+  if (!session) {
+    throw new AppErrorHelper(" session not found  ! ", 404);
+  }
 
-    const student = await User.findById(studentId)
-    const instructor = await User.findById(instructorId)
-    const session = await Session.findById(sessionId);
+  if (student.role !== "student" || instructor.role !== "instructor") {
+    throw new AppErrorHelper("Wrong assignment of roles !", 400);
+  }
 
-    if(!student || !instructor){
-        throw new AppErrorHelper(" User not found  ! ", 404);
-    }
-
-    if(!session){
-        throw new AppErrorHelper(" session not found  ! ", 404);
-    }
-    
-    if(student.role !== "student" || instructor.role !== "instructor" )
-    {
-        throw  new AppErrorHelper("Wrong assignment of roles !",400);
-    }
-
-    return await Task.create({
+  return await Task.create({
     sessionId: sessionId,
     studentId: studentId,
     instructorId: instructorId,
-    title: title || '',
+    title: title || "",
     taskLinks: taskLinks || [],
-    description: description || '',
+    description: description || "",
     dueDate: dueDate || Date.now(),
-    status: status
-    });
+    status: status,
+  });
+};
 
-}
+const getAllTasksService = async (queryString = {}) => {
+  const features = new ApiFeatures(Task.find({}), queryString).filter().sort().fields().pagination();
 
-const getAllTasksService = async (queryString={})=>{
+  return await features.mongooseQuery;
+};
 
-    const features = new ApiFeatures(Task.find({}),queryString).filter().sort().fields().pagination();
+const getTaskByIdService = async (taskId) => {
+  const task = await Task.findById(taskId);
 
-    return await features.mongooseQuery;
-     
-}
+  if (!task) {
+    throw new AppErrorHelper(" No task found ! ", 404);
+  }
 
-const getTaskByIdService = async (taskId)=>{
-    
-    const task = await Task.findById(taskId);
+  return task;
+};
 
-    if(!task){
-        throw new AppErrorHelper(" No task found ! ", 404);
-    }
+const getTasksBySessionIdService = async (sessionId, queryString = {}) => {
+  const features = new ApiFeatures(Task.find({ sessionId: sessionId }), queryString).filter().sort().fields().pagination();
 
-    return task;
+  return await features.mongooseQuery;
+};
 
-}
+const getTasksByStudentIdService = async (studentId, queryString = {}) => {
+  const features = new ApiFeatures(Task.find({ studentId: studentId }), queryString).filter().sort().fields().pagination();
 
-const getTasksBySessionIdService =  async (sessionId , queryString ={})=>{
-    
-    const features = new ApiFeatures(Task.find({sessionId:sessionId}),queryString).filter().sort().fields().pagination();
-
-    return await features.mongooseQuery;
-
-}
-
-const getTasksByStudentIdService =  async (studentId , queryString ={})=>{
-    
-    const features = new ApiFeatures(Task.find({studentId:studentId}),queryString).filter().sort().fields().pagination();
-
-    return await features.mongooseQuery;
-
-}
-
+  return await features.mongooseQuery;
+};
 
 const updateTaskByIdService = async (TaskId, data) => {
   const options = {
     new: true,
     runValidators: true,
   };
-    const task = await Task.findByIdAndUpdate(
-    TaskId,
-    data,
-    options
-    );
+  const task = await Task.findByIdAndUpdate(TaskId, data, options);
 
   if (!task) {
     throw new AppErrorHelper("Task not found!", 404);
@@ -109,8 +82,7 @@ const updateTaskByIdService = async (TaskId, data) => {
   return task;
 };
 
-const updateTaskStatusService= async(TaskId,status)=>{
-  
+const updateTaskStatusService = async (TaskId, status) => {
   const normalizedStatus = typeof status === "string" ? status.trim().toLowerCase() : "";
   const statusAliasMap = { cancelled: "canceled" };
   const finalStatus = statusAliasMap[normalizedStatus] || normalizedStatus;
@@ -119,41 +91,36 @@ const updateTaskStatusService= async(TaskId,status)=>{
   if (!allowedFields.includes(finalStatus)) {
     throw new AppErrorHelper("Invalid Status !", 400);
   }
-    const options = {
+  const options = {
     new: true,
     runValidators: true,
   };
 
-    const task = await Task.findByIdAndUpdate(
-    TaskId,
-    { status: finalStatus },
-    options
-    );
+  const task = await Task.findByIdAndUpdate(TaskId, { status: finalStatus }, options);
 
   if (!task) {
     throw new AppErrorHelper("Task not found!", 404);
   }
 
   return task;
-}
+};
 
 const deleteTaskByIdService = async (TaskId) => {
-const deletedTask = await Task.findByIdAndDelete(TaskId);
+  const deletedTask = await Task.findByIdAndDelete(TaskId);
 
-if (!deletedTask) throw new AppErrorHelper("Task not found!", 404);
+  if (!deletedTask) throw new AppErrorHelper("Task not found!", 404);
 
-return deletedTask
+  return deletedTask;
 };
 
 const getTasksStatsByStudentIdService = async (studentId) => {
-  
   if (!mongoose.Types.ObjectId.isValid(studentId)) {
     throw new AppErrorHelper("Invalid student id!", 400);
   }
 
   const stats = await Task.aggregate([
     {
-      $match: { studentId: new mongoose.Types.ObjectId(studentId) }
+      $match: { studentId: new mongoose.Types.ObjectId(studentId) },
     },
     {
       $group: {
@@ -161,20 +128,20 @@ const getTasksStatsByStudentIdService = async (studentId) => {
         totalTasks: { $sum: 1 },
         completedTasks: {
           $sum: {
-            $cond: [{ $eq: ["$status", "completed"] }, 1, 0]
-          }
+            $cond: [{ $eq: ["$status", "completed"] }, 1, 0],
+          },
         },
         pendingTasks: {
           $sum: {
-            $cond: [{ $eq: ["$status", "pending"] }, 1, 0]
-          }
+            $cond: [{ $eq: ["$status", "pending"] }, 1, 0],
+          },
         },
         canceledTasks: {
           $sum: {
-            $cond: [{ $eq: ["$status", "canceled"] }, 1, 0]
-          }
-        }
-      }
+            $cond: [{ $eq: ["$status", "canceled"] }, 1, 0],
+          },
+        },
+      },
     },
     {
       $addFields: {
@@ -183,28 +150,15 @@ const getTasksStatsByStudentIdService = async (studentId) => {
             { $eq: ["$totalTasks", 0] },
             0,
             {
-              $multiply: [
-                { $divide: ["$completedTasks", "$totalTasks"] },
-                100
-              ]
-            }
-          ]
-        }
-      }
-    }
+              $multiply: [{ $divide: ["$completedTasks", "$totalTasks"] }, 100],
+            },
+          ],
+        },
+      },
+    },
   ]);
 
   return stats[0] || {};
 };
 
-export {
-    createTaskServices,
-    getAllTasksService,
-    getTaskByIdService,
-    getTasksBySessionIdService,
-    getTasksByStudentIdService,
-    getTasksStatsByStudentIdService,
-    updateTaskByIdService,
-    updateTaskStatusService,
-    deleteTaskByIdService,
-}
+export { createTaskServices, getAllTasksService, getTaskByIdService, getTasksBySessionIdService, getTasksByStudentIdService, getTasksStatsByStudentIdService, updateTaskByIdService, updateTaskStatusService, deleteTaskByIdService };

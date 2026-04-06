@@ -1,18 +1,17 @@
 import CatchAsync from "../Utilities/CatchAsync.js";
 import {
-    CreateExternalCourseService,
-    getMyExternalCourseService,
-    getMyExternalCourseByIdService,
-    getAllExternalCoursesService,
-    getExternalCourseByIdService,
-    getExternalCourseByStudentService,
-    updateExternalCourseService,
-    deleteExternalCourseService
-}from "../Services/ExternalCourseService.js"
+  CreateExternalCourseService,
+  getMyExternalCourseService,
+  getMyExternalCourseByIdService,
+  getAllExternalCoursesService,
+  getExternalCourseByIdService,
+  getExternalCourseByStudentService,
+  updateExternalCourseService,
+  deleteExternalCourseService,
+} from "../Services/ExternalCourseService.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 
 const CreateExternalCourseController = CatchAsync(async (req, res, next) => {
-
   if (!req.body || Object.keys(req.body).length === 0) {
     return next(new AppErrorHelper("Data is missing!", 400));
   }
@@ -22,44 +21,33 @@ const CreateExternalCourseController = CatchAsync(async (req, res, next) => {
   res.status(201).json({
     status: "success",
     data: {
-      course
-    }
+      course,
+    },
   });
-
 });
-
 
 export const getMyExternalCoursesController = CatchAsync(async (req, res) => {
+  const user = req.user;
 
-    const user = req.user; 
+  const courses = await getMyExternalCourseService(user, req.query);
 
-    const courses = await getMyExternalCourseService(user,req.query);
-
-    res.status(200).json({
-        status: "success",
-        results: courses.length,
-        data: courses
-    });
-
+  res.status(200).json({
+    status: "success",
+    results: courses.length,
+    data: courses,
+  });
 });
 
-
-
-
-export const getMyExternalCourseByIdController = CatchAsync( async (req, res, next) => {
-      
+export const getMyExternalCourseByIdController = CatchAsync(async (req, res, next) => {
   const course = await getMyExternalCourseByIdService(req.user, req.params.id);
 
-      res.status(200).json({
-            status: "success",
-            data: { course }
-      });
-
-
+  res.status(200).json({
+    status: "success",
+    data: { course },
+  });
 });
 
 const getAllExternalCoursesController = CatchAsync(async (req, res, next) => {
-
   const docs = await getAllExternalCoursesService(req.query);
 
   if (!docs || docs.length === 0) {
@@ -70,15 +58,12 @@ const getAllExternalCoursesController = CatchAsync(async (req, res, next) => {
     status: "success",
     data: {
       results: docs.length,
-      docs
-    }
+      docs,
+    },
   });
-
 });
 
-
 const getExternalCourseByIdController = CatchAsync(async (req, res, next) => {
-
   const course = await getExternalCourseByIdService(req.params.id);
 
   if (!course) {
@@ -88,15 +73,12 @@ const getExternalCourseByIdController = CatchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: {
-      course
-    }
+      course,
+    },
   });
-
 });
 
-
 const getExternalCoursesByStudentController = CatchAsync(async (req, res, next) => {
-
   const docs = await getExternalCourseByStudentService(req.params.id, req.query);
 
   if (!docs || docs.length === 0) {
@@ -107,16 +89,12 @@ const getExternalCoursesByStudentController = CatchAsync(async (req, res, next) 
     status: "success",
     data: {
       results: docs.length,
-      docs
-    }
+      docs,
+    },
   });
-
 });
 
-
-
 const updateExternalCourseController = CatchAsync(async (req, res, next) => {
-
   const course = await updateExternalCourseService(req.params.id, req.body);
 
   if (!course) {
@@ -126,16 +104,12 @@ const updateExternalCourseController = CatchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: {
-      course
-    }
+      course,
+    },
   });
-
 });
 
-
-
 const deleteExternalCourseController = CatchAsync(async (req, res, next) => {
-
   const course = await deleteExternalCourseService(req.params.id);
 
   if (!course) {
@@ -143,12 +117,9 @@ const deleteExternalCourseController = CatchAsync(async (req, res, next) => {
   }
 
   res.status(200).json({
-    status: "Document deleted successfully"
+    status: "Document deleted successfully",
   });
-
 });
-
-
 
 export {
   CreateExternalCourseController,
@@ -158,5 +129,5 @@ export {
   getExternalCourseByIdController,
   getExternalCoursesByStudentController,
   updateExternalCourseController,
-  deleteExternalCourseController
+  deleteExternalCourseController,
 };

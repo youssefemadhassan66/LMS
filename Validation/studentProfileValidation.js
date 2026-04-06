@@ -6,32 +6,23 @@ export const createStudentProfileSchema = Joi.object({
     .items(
       Joi.string()
         .pattern(/^[0-9a-fA-F]{24}$/)
-        .message("Invalid parent ID format")
+        .message("Invalid parent ID format"),
     )
     .optional()
     .messages({
       "array.base": "Parents must be an array",
     }),
 
-  grade: Joi.string()
-    .trim()
-    .min(1)
-    .max(50)
-    .optional()
-    .messages({
-      "string.base": "Grade must be a string",
-      "string.min": "Grade must be at least 1 character",
-      "string.max": "Grade cannot exceed 50 characters",
-    }),
+  grade: Joi.string().trim().min(1).max(50).optional().messages({
+    "string.base": "Grade must be a string",
+    "string.min": "Grade must be at least 1 character",
+    "string.max": "Grade cannot exceed 50 characters",
+  }),
 
-  notes: Joi.string()
-    .trim()
-    .max(500)
-    .optional()
-    .messages({
-      "string.base": "Notes must be a string",
-      "string.max": "Notes cannot exceed 500 characters",
-    }),
+  notes: Joi.string().trim().max(500).optional().messages({
+    "string.base": "Notes must be a string",
+    "string.max": "Notes cannot exceed 500 characters",
+  }),
 });
 
 // Validation schema for updating a student profile
@@ -40,32 +31,23 @@ export const updateStudentProfileSchema = Joi.object({
     .items(
       Joi.string()
         .pattern(/^[0-9a-fA-F]{24}$/)
-        .message("Invalid parent ID format")
+        .message("Invalid parent ID format"),
     )
     .optional()
     .messages({
       "array.base": "Parents must be an array",
     }),
 
-  grade: Joi.string()
-    .trim()
-    .min(1)
-    .max(50)
-    .optional()
-    .messages({
-      "string.base": "Grade must be a string",
-      "string.min": "Grade must be at least 1 character",
-      "string.max": "Grade cannot exceed 50 characters",
-    }),
+  grade: Joi.string().trim().min(1).max(50).optional().messages({
+    "string.base": "Grade must be a string",
+    "string.min": "Grade must be at least 1 character",
+    "string.max": "Grade cannot exceed 50 characters",
+  }),
 
-  notes: Joi.string()
-    .trim()
-    .max(500)
-    .optional()
-    .messages({
-      "string.base": "Notes must be a string",
-      "string.max": "Notes cannot exceed 500 characters",
-    }),
+  notes: Joi.string().trim().max(500).optional().messages({
+    "string.base": "Notes must be a string",
+    "string.max": "Notes cannot exceed 500 characters",
+  }),
 })
   .min(1)
   .messages({

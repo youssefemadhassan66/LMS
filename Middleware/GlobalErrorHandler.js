@@ -1,86 +1,76 @@
-import  log  from "winston";
+import log from "winston";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import logger from "../Utilities/Logger.js";
 
-const HandleCastDbError = (err)=>{
-    const message =  `Invalid ${err.path} : ${err.value}`
-    return new AppErrorHelper(message,400);
-}
+const HandleCastDbError = (err) => {
+  const message = `Invalid ${err.path} : ${err.value}`;
+  return new AppErrorHelper(message, 400);
+};
 
-const HandelDuplicatesError = (err)=>{
-    const field = Object.keys(err.KeyValue)[0]
-    const value = err.KeyValue[field]
-     const message = `Duplicated value ${value} for this key ${field} , Please use another value`
-    return new AppErrorHelper(message,400);
-}
-const HandleValidationError = (err)=>{
+const HandelDuplicatesError = (err) => {
+  const field = Object.keys(err.KeyValue)[0];
+  const value = err.KeyValue[field];
+  const message = `Duplicated value ${value} for this key ${field} , Please use another value`;
+  return new AppErrorHelper(message, 400);
+};
+const HandleValidationError = (err) => {
+  const errors = Object.values(err.errors).map((el) => el.message);
+  const message = `Validation Error , ${errors.join(". ")}`;
+  return new AppErrorHelper(message, 400);
+};
+const HandleJwtError = () => {
+  return new AppErrorHelper("Invalid token , Please login or create an account !", 401);
+};
 
-    const errors = Object.values(err.errors).map(el=>el.message)
-    const message = `Validation Error , ${errors.join(". ")}` 
-    return new AppErrorHelper(message,400);
+const HandleJwtExpirationError = () => {
+  return new AppErrorHelper("Token expired , Please login again", 401);
+};
 
-}
-const HandleJwtError = ()=>{
-    return new AppErrorHelper("Invalid token , Please login or create an account !",401)
-}
+const DevelopmentErrorHandler = (err, req, res) => {
+  logger.info(err);
+  res.status(parseInt(err.statusCode)).json({
+    status: err.status,
+    message: err.message,
+    stack: err.stack,
+    error: err,
+  });
+};
 
-const HandleJwtExpirationError = ()=>{
-    return new AppErrorHelper("Token expired , Please login again",401)
-}
-
-const DevelopmentErrorHandler = (err,req,res)=>{
-    logger.info(err);
+const ProductionErrorHandler = (err, req, res) => {
+  if (err.isOperational) {
+    res.status(err.statusCode).json({
+      status: err.status,
+      message: err.message,
+    });
+  } else {
+    logger.error(err);
     res.status(parseInt(err.statusCode)).json({
-        status : err.status,
-        message : err.message,
-        stack : err.stack,
-        error:err
-    })
-}
+      status: "Error",
+      message: "Something went wrong !",
+    });
+  }
+};
 
-const ProductionErrorHandler = (err,req,res)=>{
-    if(err.isOperational){
-        res.status(err.statusCode).json({
-            status:err.status,
-            message:err.message
-        })
+const GlobalErrorHandler = (err, req, res, next) => {
+  err.status = err.status || "fail";
+  err.statusCode = err.statusCode || "500";
 
-    }
-    else{
-        logger.error(err);
-           res.status(parseInt(err.statusCode)).json({
-            status:"Error",
-            message:"Something went wrong !"
-        })
+  // Default to Development mode if NODE_ENV is not set
+  const environment = process.env.NODE_ENV || "Development";
 
-    }
+  if (environment === "Development") {
+    DevelopmentErrorHandler(err, req, res);
+  } else {
+    const error = { ...err };
 
-}
+    if (error.name === "CastError") error = HandleCastDbError(error);
+    if (error.code === 11000) error = HandelDuplicatesError(error);
+    if (error.name === "ValidationError") error = HandleValidationError(error);
+    if (error.name === "JsonWebTokenError") error = HandleJwtError();
+    if (error.name === "TokenExpiredError") error = HandleJwtExpirationError();
 
-const GlobalErrorHandler = (err,req,res,next)=>{
-   
-    err.status = err.status || "fail";  
-    err.statusCode = err.statusCode || "500"; 
-    
-    // Default to Development mode if NODE_ENV is not set
-    const environment = process.env.NODE_ENV || "Development";
-    
-    if(environment === "Development"){
-        DevelopmentErrorHandler(err,req,res);
-    } 
-    else {
-        const error = {...err}
-
-        if(error.name==="CastError") error = HandleCastDbError(error);
-        if (error.code === 11000) error = HandelDuplicatesError(error);
-        if (error.name === 'ValidationError')error =HandleValidationError(error);
-        if (error.name === 'JsonWebTokenError') error = HandleJwtError();
-        if (error.name === 'TokenExpiredError') error = HandleJwtExpirationError();
-
-        ProductionErrorHandler(error, req, res);
-    }
-}
-
-
+    ProductionErrorHandler(error, req, res);
+  }
+};
 
 export default GlobalErrorHandler;

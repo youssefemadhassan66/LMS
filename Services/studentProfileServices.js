@@ -4,74 +4,61 @@ import User from "../Models/User.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
 
-
- const createStudentProfileService = async (userId, profileData) => {
-  
-  if(!userId || !profileData){
+const createStudentProfileService = async (userId, profileData) => {
+  if (!userId || !profileData) {
     throw new AppErrorHelper("Student information is missing ! ", 404);
   }
 
   const { parents, grade, notes } = profileData;
 
   const user = await User.findById(userId);
-  if(!user || !user.isActive){
+  if (!user || !user.isActive) {
     throw new AppErrorHelper("User not found ! ", 404);
   }
 
   const studentProfile = await StudentProfile.create({
     user: user._id,
     parents: parents || [],
-    grade: grade || '',
-    notes: notes || ''
+    grade: grade || "",
+    notes: notes || "",
   });
 
   return studentProfile;
-}
+};
 
- const updateStudentProfileService = async (profileId, updateData) => {
+const updateStudentProfileService = async (profileId, updateData) => {
+  if (!profileId || !updateData) {
+    throw new AppErrorHelper("Profile ID and update data are required ! ", 400);
+  }
+  const options = {
+    new: true,
+    runValidators: true,
+  };
+  const updatedStudentProfile = await StudentProfile.findByIdAndUpdate(profileId, updateData, options);
 
-    if(!profileId || !updateData){
-        throw new AppErrorHelper("Profile ID and update data are required ! ", 400);
-    }
-    const options = {
-        new:true,
-        runValidators:true,
-    }
-    const updatedStudentProfile = await StudentProfile.findByIdAndUpdate(profileId,updateData,options)
+  if (!updatedStudentProfile) {
+    throw new AppErrorHelper("Student profile not found ! ", 404);
+  }
 
-    if(!updatedStudentProfile){
-        
-        throw new AppErrorHelper("Student profile not found ! ", 404);
-    }
+  return updatedStudentProfile;
+};
 
-    return updatedStudentProfile;
-
-}
-
-
- const getStudentProfileService = async (profileId) => {
-  if(!profileId){
+const getStudentProfileService = async (profileId) => {
+  if (!profileId) {
     throw new AppErrorHelper("Profile ID is required ! ", 400);
   }
 
-  const profile = await StudentProfile.findById(profileId)
-    .populate('user')
-    .populate('parents');
-
+  const profile = await StudentProfile.findById(profileId).populate("user").populate("parents");
 
   return profile;
-}
-
+};
 
 const getMyStudentProfileServiceById = async (parent, childId) => {
-
   if (parent.role === "parent") {
-
-    const profile = await StudentProfile
-      .findOne({
-        user: childId,
-        parents: parent._id
-      })
+    const profile = await StudentProfile.findOne({
+      user: childId,
+      parents: parent._id,
+    })
       .populate("user", "FullName UserName email")
       .lean();
 
@@ -85,57 +72,32 @@ const getMyStudentProfileServiceById = async (parent, childId) => {
   throw new AppErrorHelper("Not allowed!", 403);
 };
 
-
 const getMyStudentProfileService = async (user) => {
-
   if (user.role === "student") {
-
-    const profile = await StudentProfile
-      .findOne({ user: user._id })
-      .populate("user", "FullName UserName email");
+    const profile = await StudentProfile.findOne({ user: user._id }).populate("user", "FullName UserName email");
 
     if (!profile) {
       throw new AppErrorHelper("Profile not found!", 404);
     }
 
     return profile;
-  }
-
-  else if (user.role === "parent") {
-
-    const profiles = await StudentProfile
-      .find({ parents: user._id })
-      .populate("user", "FullName UserName email");
+  } else if (user.role === "parent") {
+    const profiles = await StudentProfile.find({ parents: user._id }).populate("user", "FullName UserName email");
 
     if (profiles.length === 0) {
       throw new AppErrorHelper("No children found!", 404);
     }
 
     return profiles;
-  }
-
-  else {
+  } else {
     throw new AppErrorHelper("Not allowed!", 403);
   }
 };
 
-
-const getAllStudentProfilesService = async(QueryString)=>{
-  const features= new ApiFeatures(StudentProfile.find({}),QueryString)
-  .filter()
-  .sort()
-  .fields()
-  .pagination()
+const getAllStudentProfilesService = async (QueryString) => {
+  const features = new ApiFeatures(StudentProfile.find({}), QueryString).filter().sort().fields().pagination();
 
   return await features.mongooseQuery;
+};
 
-}
-
-export {
-    getStudentProfileService,
-    updateStudentProfileService,
-    createStudentProfileService,
-    getMyStudentProfileService,
-    getMyStudentProfileServiceById,
-    getAllStudentProfilesService
-}
+export { getStudentProfileService, updateStudentProfileService, createStudentProfileService, getMyStudentProfileService, getMyStudentProfileServiceById, getAllStudentProfilesService };

@@ -41,14 +41,18 @@ const SubmissionSchema = mongoose.Schema(
       },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
+
+SubmissionSchema.index({ task: 1, student: 1 });
+SubmissionSchema.index({ student: 1 });
+SubmissionSchema.index({ status: 1 });
 
 // ─── Pre-find ─────────────────────────────────────────────────────────────────
 SubmissionSchema.pre(/^find/, async function () {
   this.populate([
-    { path: "task",    select: "title dueDate" },
-    { path: "student", select: "userName FullName" }
+    { path: "task", select: "title dueDate" },
+    { path: "student", select: "userName FullName" },
   ]);
 });
 
@@ -59,14 +63,12 @@ SubmissionSchema.pre("save", async function () {
   if (!task) return;
 
   if (this.status === "Completed") {
-  
     if (!this.Task_links || this.Task_links.length === 0) {
       throw new Error("At least one submission link is required when marking as Completed");
     }
 
     this.SubmissionDate = new Date();
     this.note = "Great job!";
-
 
     if (this.SubmissionDate > task.dueDate) {
       this.status = "Late submission";
@@ -76,10 +78,8 @@ SubmissionSchema.pre("save", async function () {
     this.SubmissionDate = undefined;
     this.note = "Waiting for Submission!";
   } else if (this.status === "Resubmitted") {
-    
     this.note = "Please review the task and resubmit!";
   }
-
 
   if (this.review && this.review.score !== undefined && this.review.score !== null) {
     const score = this.review.score;
@@ -97,7 +97,6 @@ SubmissionSchema.pre("save", async function () {
       this.review.rating = "Full mark";
     }
   }
-
 });
 
 // ─── Methods ──────────────────────────────────────────────────────────────────

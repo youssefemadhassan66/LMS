@@ -26,43 +26,100 @@ import externalHWRouter from "./Routes/ExternalCourseHwRouter.js";
 
 const app = express();
 
-// ─── 1. Security Headers ──────────────────────────────────────────────────────
-app.use(helmet());
-
-// ─── 2. CORS ─────────────────────────────────────────────────────────────────
+// ─── 1. Security Headers (Enhanced Helmet) ──────────────────────────────────────
 app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    credentials: true,
-  }),
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    hsts: process.env.NODE_ENV === "production" ? {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    } : false,
+  })
 );
 
-// ─── 3. Rate Limiting ─────────────────────────────────────────────────────────
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+// ─── 2. CORS Configuration ──────────────────────────────────────────────────────
+// app.use(
+//   cors({
+//     origin: process.env.CLIENT_URL || "http://localhost:5173",
+//     credentials: true,
+//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+//     exposedHeaders: ["Content-Length", "X-Total-Count"],
+//     maxAge: 86400, // 24 hours
+//   })
+// );
+
+// ─── 3. General API Rate Limiter ───────────────────────────────────────────────
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
   message: "Too many requests from this IP, please try again after 15 minutes.",
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === "/api/v1/health" || req.path === "/api-docs",
 });
-app.use("/api", limiter);
+app.use("/api", apiLimiter);
 
-// ─── 4. Logger (dev only) ─────────────────────────────────────────────────────
+// Helper function to extract client IP address
+const getClientIp = (req) => {
+  return (req.headers["x-forwarded-for"]?.split(",")[0].trim()) || 
+         req.ip || 
+         req.socket?.remoteAddress || 
+         "unknown";
+};
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per 15 minutes
+  message: "Too many authentication attempts, please try again after 15 minutes.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use email for login, IP for signup to limit per account
+    if (req.body?.email) {
+      return `login:${req.body.email}`;
+    }
+    return `signup:${getClientIp(req)}`; 
+  },
+});
+app.use("/api/v1/auth/login", authLimiter);
+app.use("/api/v1/auth/signup", authLimiter);
+
+// ─── 5. Development Logging ───────────────────────────────────────────────────
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
+} else if (process.env.NODE_ENV === "production") {
+  // Production access logging
+  app.use(morgan("combined"));
 }
 
-// ─── 5. Body Parsers ─────────────────────────────────────────────────────────
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+// ─── 6. Body Parsers ───────────────────────────────────────────────────────────
+app.use(express.json({ 
+  limit: "10kb",
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      throw new AppErrorHelper("Invalid JSON in request body", 400);
+    }
+  }
+}));
+app.use(express.urlencoded({ extended: true, limit: "10kb", parameterLimit: 20 }));
 app.use(cookieParser());
 
-// ─── 6. NoSQL Injection Sanitization ─────────────────────────────────────────
-// ✅ Replaced express-mongo-sanitize entirely — that package tries to reassign
-// req.query which is a read-only getter in newer Express/Node versions and crashes.
-// This custom middleware does the same job: strips any key starting with $ or
-// containing a . from req.body and req.params only (safe to mutate both).
-
+// ─── 7. NoSQL Injection Sanitization ───────────────────────────────────────────
 const sanitizeValue = (obj) => {
   if (obj && typeof obj === "object") {
     for (const key of Object.keys(obj)) {
@@ -78,16 +135,21 @@ const sanitizeValue = (obj) => {
 app.use((req, res, next) => {
   sanitizeValue(req.body);
   sanitizeValue(req.params);
+  sanitizeValue(req.query);
   next();
 });
 
-// ─── 7. Compression ──────────────────────────────────────────────────────────
+// ─── 8. Compression ─────────────────────────────────────────────────────────────
 app.use(compression());
 
-// ─── 8. Static Files ─────────────────────────────────────────────────────────
-app.use("/uploads", express.static("uploads"));
+// ─── 9. Static Files (with security) ───────────────────────────────────────────
+app.use("/uploads", express.static("uploads", {
+  maxAge: "1h",
+  etag: true,
+  immutable: false,
+}));
 
-// ─── 9. Swagger Documentation ───────────────────────────────────────────────
+// ─── 10. Swagger Documentation ────────────────────────────────────────────────
 app.use(
   "/api-docs",
   swaggerUi.serve,
@@ -95,24 +157,51 @@ app.use(
     customCss: ".swagger-ui .topbar { display: none }",
     customSiteTitle: "LMS API Docs",
     customfavIcon: "/favicon.ico",
-  }),
+  })
 );
 app.get("/api-docs.json", (req, res) => {
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "public, max-age=3600");
   res.send(swaggerSpec);
 });
 
-// ─── 10. Health Check ────────────────────────────────────────────────────────
-app.get("/api/v1/health", (req, res) => {
-  res.status(200).json({
-    status: "success",
+// ─── 11. Health Check ───────────────────────────────────────────────────────────
+app.get("/api/v1/health", async (req, res) => {
+  let dbStatus = "disconnected";
+  try {
+    const mongoose = (await import("mongoose")).default;
+    const state = mongoose.connection.readyState;
+    if (state === 1) dbStatus = "connected";
+    else if (state === 2) dbStatus = "connecting";
+    else if (state === 3) dbStatus = "disconnecting";
+  } catch (e) {
+    dbStatus = "error";
+  }
+
+  const status = dbStatus === "connected" ? "success" : "unhealthy";
+  const httpCode = dbStatus === "connected" ? 200 : 503;
+
+  res.status(httpCode).json({
+    status,
     message: "Server is running",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    database: dbStatus,
   });
 });
 
-// ─── 11. Routes ───────────────────────────────────────────────────────────────
+// ─── 12. Request Timeout Middleware ───────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    res.status(408).json({
+      status: "error",
+      message: "Request timeout",
+    });
+  });
+  next();
+});
+
+// ─── 13. Routes ────────────────────────────────────────────────────────────────
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/StudentProfile", StudentProfileRouter);
@@ -122,12 +211,12 @@ app.use("/api/v1/submission", SubmissionRouter);
 app.use("/api/v1/sessionReview", SessionReviewRouter);
 app.use("/api/v1/external-hw", externalHWRouter);
 
-// ─── 12. Unhandled Routes ─────────────────────────────────────────────────────
+// ─── 14. 404 Handler ────────────────────────────────────────────────────────────
 app.all(/.*/, (req, res, next) => {
   next(new AppErrorHelper(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-// ─── 13. Global Error Handler ────────────────────────────────────────────────
+// ─── 15. Global Error Handler ─────────────────────────────────────────────────
 app.use(GlobalErrorHandler);
 
 export default app;

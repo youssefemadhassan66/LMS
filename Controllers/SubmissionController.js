@@ -62,10 +62,7 @@ const getSubmissionByIdController = CatchAsync(async (req, res, next) => {
  * GET /submissions/task/:taskId
  */
 const getSubmissionsByTaskIdController = CatchAsync(async (req, res, next) => {
-  const submissions = await getSubmissionsByTaskIdService(
-    req.params.taskId,
-    req.query
-  );
+  const submissions = await getSubmissionsByTaskIdService(req.params.taskId, req.query);
 
   res.status(200).json({
     status: "success",
@@ -79,10 +76,7 @@ const getSubmissionsByTaskIdController = CatchAsync(async (req, res, next) => {
  * GET /submissions/student/:studentId
  */
 const getSubmissionsByStudentIdController = CatchAsync(async (req, res, next) => {
-  const submissions = await getSubmissionsByStudentIdService(
-    req.params.studentId,
-    req.query
-  );
+  const submissions = await getSubmissionsByStudentIdService(req.params.studentId, req.query);
 
   res.status(200).json({
     status: "success",

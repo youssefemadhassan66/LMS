@@ -31,8 +31,8 @@ async function createMoreSessionReviews() {
     }
 
     // Find students and instructors
-    const students = users.filter(u => u.role === "student");
-    const instructors = users.filter(u => u.role === "instructor" || u.role === "admin");
+    const students = users.filter((u) => u.role === "student");
+    const instructors = users.filter((u) => u.role === "instructor" || u.role === "admin");
 
     if (students.length === 0) {
       console.log("No students found.");
@@ -57,7 +57,7 @@ async function createMoreSessionReviews() {
         // Check if review already exists
         const existingReview = await SessionReview.findOne({
           session: session._id,
-          Student: student._id
+          Student: student._id,
         });
 
         if (existingReview) {
@@ -90,15 +90,15 @@ async function createMoreSessionReviews() {
 
     // Create reviews one by one to trigger pre-save hook
     const createdReviews = [];
-    
+
     for (const reviewData of reviewsToCreate) {
       const review = new SessionReview(reviewData);
       const savedReview = await review.save();
       createdReviews.push(savedReview);
     }
-    
+
     console.log(`\n✅ Successfully created ${createdReviews.length} session reviews!\n`);
-    
+
     // Display created reviews
     createdReviews.forEach((review, index) => {
       console.log(`Review ${index + 1}:`);
