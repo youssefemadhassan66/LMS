@@ -1,6 +1,7 @@
 # Student Profile - Code Review & Changes Documentation
 
 ## 📋 Overview
+
 This document summarizes all the issues found and changes made to the Student Profile module (Model, Router, Controller, Service).
 
 ---
@@ -10,6 +11,7 @@ This document summarizes all the issues found and changes made to the Student Pr
 ### 1. Router Issues ([`Routes/StudentProfileRouter.js`](Routes/StudentProfileRouter.js))
 
 #### Issue 1.1: Missing Colon in Route Parameter
+
 - **Line:** 14
 - **Before:** `router.get("/id",getStudentProfileController)`
 - **After:** `router.get("/:id",getStudentProfileController)`
@@ -17,12 +19,14 @@ This document summarizes all the issues found and changes made to the Student Pr
 - **Impact:** Route would never match dynamic profile IDs
 
 #### Issue 1.2: Missing Imports
+
 - **Before:** Only imported 3 controllers
 - **After:** Imported all 6 controllers
 - **Problem:** `getMyStudentProfileController`, `getMyStudentProfileByIdController`, `getAllStudentProfileController` were exported but not imported
 - **Impact:** These controllers couldn't be used in routes
 
 #### Issue 1.3: Missing Routes
+
 - **Before:** Only had routes for `GET /:id`, `POST /:id`, `PATCH /:id`
 - **After:** Added routes for:
   - `GET /me` - Get current user's profile
@@ -36,6 +40,7 @@ This document summarizes all the issues found and changes made to the Student Pr
 ### 2. Controller Issues ([`Controllers/StudentProfileController.js`](Controllers/StudentProfileController.js))
 
 #### Issue 2.1: Undefined Variable Reference in `getMyStudentProfileController`
+
 - **Line:** 25
 - **Before:** `data: StudentProfile`
 - **After:** `data: profiles`
@@ -43,6 +48,7 @@ This document summarizes all the issues found and changes made to the Student Pr
 - **Impact:** Would throw `ReferenceError: StudentProfile is not defined` at runtime
 
 #### Issue 2.2: Undefined Variable Reference in `getMyStudentProfileByIdController`
+
 - **Line:** 36
 - **Before:** `data: StudentProfile`
 - **After:** `data: profile`
@@ -50,6 +56,7 @@ This document summarizes all the issues found and changes made to the Student Pr
 - **Impact:** Would throw `ReferenceError: StudentProfile is not defined` at runtime
 
 #### Issue 2.3: Incorrect Error Handling Syntax in `getAllStudentProfileController`
+
 - **Line:** 46
 - **Before:** `return next("No profiles found ! " , 404);`
 - **After:** `return next(new AppErrorHelper("No profiles found!", 404));`
@@ -61,6 +68,7 @@ This document summarizes all the issues found and changes made to the Student Pr
 ### 3. Service Issues ([`Services/studentProfileServices.js`](Services/studentProfileServices.js))
 
 #### Issue 3.1: Deprecated ObjectId Instantiation
+
 - **Lines:** 72-73
 - **Before:**
   ```javascript
@@ -82,6 +90,7 @@ This document summarizes all the issues found and changes made to the Student Pr
 ### 1. Input Validation with Joi
 
 #### Package Installed
+
 ```bash
 npm install joi
 ```
@@ -91,6 +100,7 @@ npm install joi
 **Schemas Created:**
 
 ##### `createStudentProfileSchema`
+
 ```javascript
 {
   parents: Array of valid MongoDB ObjectIds (optional),
@@ -100,6 +110,7 @@ npm install joi
 ```
 
 ##### `updateStudentProfileSchema`
+
 ```javascript
 {
   parents: Array of valid MongoDB ObjectIds (optional),
@@ -110,6 +121,7 @@ npm install joi
 ```
 
 ##### `profileIdSchema`
+
 ```javascript
 {
   id: Required, valid MongoDB ObjectId format (24 hex characters)
@@ -125,6 +137,7 @@ npm install joi
 **Functions Exported:**
 
 ##### `validate(schema, source)`
+
 - Middleware factory for validating request data
 - Parameters:
   - `schema`: Joi validation schema
@@ -136,6 +149,7 @@ npm install joi
   - Replaces request data with validated/sanitized data
 
 ##### `validateMultiple(schemas)`
+
 - Validates multiple sources at once
 - Parameters:
   - `schemas`: Object with schemas for different sources
@@ -148,34 +162,31 @@ npm install joi
 #### Changes to [`Routes/StudentProfileRouter.js`](Routes/StudentProfileRouter.js)
 
 **Added Imports:**
+
 ```javascript
 import { validate } from "../Middleware/validate.js";
-import {
-    createStudentProfileSchema,
-    updateStudentProfileSchema,
-    profileIdSchema
-} from "../Validation/studentProfileValidation.js";
+import { createStudentProfileSchema, updateStudentProfileSchema, profileIdSchema } from "../Validation/studentProfileValidation.js";
 ```
 
 **Updated Routes:**
 
-| Route | Before | After |
-|-------|--------|-------|
-| `GET /:id` | `getStudentProfileController` | `validate(profileIdSchema, "params"), getStudentProfileController` |
-| `POST /:id` | `createStudentProfileController` | `validate(profileIdSchema, "params"), validate(createStudentProfileSchema), createStudentProfileController` |
+| Route        | Before                           | After                                                                                                       |
+| ------------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET /:id`   | `getStudentProfileController`    | `validate(profileIdSchema, "params"), getStudentProfileController`                                          |
+| `POST /:id`  | `createStudentProfileController` | `validate(profileIdSchema, "params"), validate(createStudentProfileSchema), createStudentProfileController` |
 | `PATCH /:id` | `updateStudentProfileController` | `validate(profileIdSchema, "params"), validate(updateStudentProfileSchema), updateStudentProfileController` |
 
 ---
 
 ## 📊 Summary of Changes
 
-| Category | Files Modified | Files Created | Issues Fixed |
-|----------|---------------|---------------|--------------|
-| Router | 1 | 0 | 3 |
-| Controller | 1 | 0 | 3 |
-| Service | 1 | 0 | 1 |
-| Validation | 0 | 2 | N/A |
-| **Total** | **3** | **2** | **7** |
+| Category   | Files Modified | Files Created | Issues Fixed |
+| ---------- | -------------- | ------------- | ------------ |
+| Router     | 1              | 0             | 3            |
+| Controller | 1              | 0             | 3            |
+| Service    | 1              | 0             | 1            |
+| Validation | 0              | 2             | N/A          |
+| **Total**  | **3**          | **2**         | **7**        |
 
 ---
 
@@ -184,6 +195,7 @@ import {
 ### Test Cases for Create/Update:
 
 #### Valid Request:
+
 ```json
 POST /api/student-profiles/:id
 {
@@ -192,9 +204,11 @@ POST /api/student-profiles/:id
   "notes": "Excellent student"
 }
 ```
+
 **Expected:** 201 Created
 
 #### Invalid Parent ID:
+
 ```json
 POST /api/student-profiles/:id
 {
@@ -202,7 +216,9 @@ POST /api/student-profiles/:id
   "grade": "10th Grade"
 }
 ```
+
 **Expected:** 400 Bad Request
+
 ```json
 {
   "status": "fail",
@@ -211,13 +227,16 @@ POST /api/student-profiles/:id
 ```
 
 #### Grade Too Long:
+
 ```json
 POST /api/student-profiles/:id
 {
   "grade": "This is a very long grade name that exceeds fifty characters limit"
 }
 ```
+
 **Expected:** 400 Bad Request
+
 ```json
 {
   "status": "fail",
@@ -226,11 +245,14 @@ POST /api/student-profiles/:id
 ```
 
 #### Empty Update:
+
 ```json
 PATCH /api/student-profiles/:id
 {}
 ```
+
 **Expected:** 400 Bad Request
+
 ```json
 {
   "status": "fail",
@@ -241,16 +263,21 @@ PATCH /api/student-profiles/:id
 ### Test Cases for ID Parameter:
 
 #### Valid ID:
+
 ```
 GET /api/student-profiles/507f1f77bcf86cd799439011
 ```
+
 **Expected:** 200 OK with profile data
 
 #### Invalid ID Format:
+
 ```
 GET /api/student-profiles/invalid-id
 ```
+
 **Expected:** 400 Bad Request
+
 ```json
 {
   "status": "fail",
@@ -304,5 +331,5 @@ Validation Middleware
 
 ---
 
-*Document Generated: 2026-04-01*
-*Reviewed By: Kilo Code*
+_Document Generated: 2026-04-01_
+_Reviewed By: Kilo Code_

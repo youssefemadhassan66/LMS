@@ -5,238 +5,182 @@ import StudentProfile from "../Models/studentProfile.js";
 import ExternalHW from "../Models/ExternalHw.js";
 import mongoose from "mongoose";
 
-
 const getAllExternalHWService = async (queryString = {}) => {
-    const features = new ApiFeatures(ExternalHW.find({}), queryString) // 
-        .filter()
-        .fields()
-        .sort()
-        .pagination();
+  const features = new ApiFeatures(ExternalHW.find({}), queryString) //
+    .filter()
+    .fields()
+    .sort()
+    .pagination();
 
-    return await features.mongooseQuery; 
+  return await features.mongooseQuery;
 };
-
 
 const getExternalHwByIdService = async (hwId) => {
-    const hw = await ExternalHW.findById(hwId);
+  const hw = await ExternalHW.findById(hwId);
 
-    if (!hw) {
-        throw new AppErrorHelper("Homework not found!", 404);
-    }
+  if (!hw) {
+    throw new AppErrorHelper("Homework not found!", 404);
+  }
 
-    return hw;
+  return hw;
 };
-
 
 // ─── Get MY HWs (student or parent) ───────────────────────────────────
 const getMyExternalHWService = async (user, queryString = {}) => {
-    let mongooseQuery;
+  let mongooseQuery;
 
-    if (user.role === "student") {
-       
-        mongooseQuery = ExternalHW.find({}).populate({
-            path: "externalCourse",
-            match: { student: user.id }, 
-            select: "subject teacher student",
-        });
+  if (user.role === "student") {
+    mongooseQuery = ExternalHW.find({}).populate({
+      path: "externalCourse",
+      match: { student: user.id },
+      select: "subject teacher student",
+    });
+  } else if (user.role === "parent") {
+    // Parents see HWs of their linked children
+    const childrenProfiles = await StudentProfile.find({ parents: new mongoose.Types.ObjectId(user.id) }, { user: 1 });
 
-    } else if (user.role === "parent") {
-        // Parents see HWs of their linked children
-        const childrenProfiles = await StudentProfile.find(
-            { parents: new mongoose.Types.ObjectId(user.id) },
-            { user: 1 }
-        );
-
-        if (!childrenProfiles.length) {
-            return [];
-        }
-
-        const childrenIds = childrenProfiles.map((profile) => profile.user);
-
-        
-        const courses = await ExternalCourse.find(
-            { student: { $in: childrenIds } },
-            { _id: 1 }
-        );
-
-        const courseIds = courses.map((c) => c._id);
-
-        mongooseQuery = ExternalHW.find({ externalCourse: { $in: courseIds } });
-
-    } else {
-        throw new AppErrorHelper("Not allowed", 403);
+    if (!childrenProfiles.length) {
+      return [];
     }
 
-    const features = new ApiFeatures(mongooseQuery, queryString)
-        .filter()
-        .sort()
-        .fields()
-        .pagination();
+    const childrenIds = childrenProfiles.map((profile) => profile.user);
 
-    return await features.mongooseQuery;
+    const courses = await ExternalCourse.find({ student: { $in: childrenIds } }, { _id: 1 });
+
+    const courseIds = courses.map((c) => c._id);
+
+    mongooseQuery = ExternalHW.find({ externalCourse: { $in: courseIds } });
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  const features = new ApiFeatures(mongooseQuery, queryString).filter().sort().fields().pagination();
+
+  return await features.mongooseQuery;
 };
-
 
 // ─── Get HWs by Course ID ─────────────────────────────────────────────
 const getExternalHWByCourseService = async (courseId, queryString = {}) => {
-    // Make sure the course exists first
-    const course = await ExternalCourse.findById(courseId);
-    if (!course) {
-        throw new AppErrorHelper("Course not found!", 404);
-    }
+  // Make sure the course exists first
+  const course = await ExternalCourse.findById(courseId);
+  if (!course) {
+    throw new AppErrorHelper("Course not found!", 404);
+  }
 
-    const features = new ApiFeatures(
-        ExternalHW.find({ externalCourse: courseId }),
-        queryString
-    )
-        .filter()
-        .sort()
-        .fields()
-        .pagination();
+  const features = new ApiFeatures(ExternalHW.find({ externalCourse: courseId }), queryString).filter().sort().fields().pagination();
 
-    return await features.mongooseQuery;
+  return await features.mongooseQuery;
 };
-
 
 const createExternalHwService = async (data) => {
-    const {
-        title,
-        description,
-        dueDate,
-        notes,
-        externalCourse,
-        submissionLinks,
-        category,
-    } = data;
+  const { title, description, dueDate, notes, externalCourse, submissionLinks, category } = data;
 
-    const course = await ExternalCourse.findById(externalCourse);
-    if (!course) {
-        throw new AppErrorHelper("Course not found!", 404);
-    }
+  const course = await ExternalCourse.findById(externalCourse);
+  if (!course) {
+    throw new AppErrorHelper("Course not found!", 404);
+  }
 
-    if (!dueDate) {
-        throw new AppErrorHelper("Due date is required!", 400);
-    }
+  if (!dueDate) {
+    throw new AppErrorHelper("Due date is required!", 400);
+  }
 
-    const hw = await ExternalHW.create({
-        title,
-        description,
-        dueDate,
-        notes,
-        externalCourse,
-        submissionLinks,
-        category,
-    });
+  const hw = await ExternalHW.create({
+    title,
+    description,
+    dueDate,
+    notes,
+    externalCourse,
+    submissionLinks,
+    category,
+  });
 
-    return hw;
+  return hw;
 };
-
 
 const getMyExternalHwByIdService = async (user, hwId) => {
+  const hw = await ExternalHW.findById(hwId);
 
-    const hw = await ExternalHW.findById(hwId);
+  if (!hw) {
+    throw new AppErrorHelper("Homework not found!", 404);
+  }
 
-    if (!hw) {
-        throw new AppErrorHelper("Homework not found!", 404);
+  // Get the course this HW belongs to, so we can check ownership
+  const course = await ExternalCourse.findById(hw.externalCourse);
+
+  if (!course) {
+    throw new AppErrorHelper("Course not found!", 404);
+  }
+
+  if (user.role === "student") {
+    if (course.student.toString() !== user.id) {
+      throw new AppErrorHelper("Not allowed!", 403);
     }
-
-    // Get the course this HW belongs to, so we can check ownership
-    const course = await ExternalCourse.findById(hw.externalCourse);
-
-    if (!course) {
-        throw new AppErrorHelper("Course not found!", 404);
-    }
-
-    if (user.role === "student") {
-        if (course.student.toString() !== user.id) {
-            throw new AppErrorHelper("Not allowed!", 403);
-        }
-    }
-
-    else if (user.role === "parent") {
-        const childProfile = await StudentProfile.find({
-            user: course.student,
-            parents: new mongoose.Types.ObjectId(user.id)
-        });
-
-        if (!childProfile || childProfile.length === 0) {
-            throw new AppErrorHelper("Not allowed!", 403);
-        }
-    }
-
-    else {
-        throw new AppErrorHelper("Not allowed!", 403);
-    }
-
-    return hw;
-};
-
-
-const updateExternalHwService = async (hwId, data) => {
-    // Prevent manually overriding these — the pre("save") hook manages them
-    delete data.isSubmitted;
-    delete data.submissionDate;
-
-    const hw = await ExternalHW.findByIdAndUpdate(hwId, data, {
-        new: true,
-        runValidators: true,
+  } else if (user.role === "parent") {
+    const childProfile = await StudentProfile.find({
+      user: course.student,
+      parents: new mongoose.Types.ObjectId(user.id),
     });
 
-    if (!hw) {
-        throw new AppErrorHelper("Homework not found!", 404);
+    if (!childProfile || childProfile.length === 0) {
+      throw new AppErrorHelper("Not allowed!", 403);
     }
+  } else {
+    throw new AppErrorHelper("Not allowed!", 403);
+  }
 
-    return hw;
+  return hw;
 };
 
+const updateExternalHwService = async (hwId, data) => {
+  // Prevent manually overriding these — the pre("save") hook manages them
+  delete data.isSubmitted;
+  delete data.submissionDate;
+
+  const hw = await ExternalHW.findByIdAndUpdate(hwId, data, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!hw) {
+    throw new AppErrorHelper("Homework not found!", 404);
+  }
+
+  return hw;
+};
 
 const deleteExternalHwService = async (hwId) => {
-    const hw = await ExternalHW.findByIdAndDelete(hwId);
+  const hw = await ExternalHW.findByIdAndDelete(hwId);
 
-    if (!hw) {
-        throw new AppErrorHelper("Homework not found!", 404);
-    }
+  if (!hw) {
+    throw new AppErrorHelper("Homework not found!", 404);
+  }
 
-    return hw;
+  return hw;
 };
-
 
 const markExternalHwCompleteService = async (hwId, submissionLinks) => {
-    const hw = await ExternalHW.findById(hwId);
+  const hw = await ExternalHW.findById(hwId);
 
-    if (!hw) {
-        throw new AppErrorHelper("Homework not found!", 404);
-    }
+  if (!hw) {
+    throw new AppErrorHelper("Homework not found!", 404);
+  }
 
-    if (hw.status === "Completed" || hw.status === "Late submission") {
-        throw new AppErrorHelper("Homework is already submitted!", 400);
-    }
+  if (hw.status === "Completed" || hw.status === "Late submission") {
+    throw new AppErrorHelper("Homework is already submitted!", 400);
+  }
 
-    if (hw.status === "Canceled") {
-        throw new AppErrorHelper("Cannot complete a canceled homework!", 400);
-    }
+  if (hw.status === "Canceled") {
+    throw new AppErrorHelper("Cannot complete a canceled homework!", 400);
+  }
 
-    
-    if (submissionLinks && submissionLinks.length > 0) {
-        hw.submissionLinks = submissionLinks;
-    }
+  if (submissionLinks && submissionLinks.length > 0) {
+    hw.submissionLinks = submissionLinks;
+  }
 
-    hw.status = "Completed";
-    await hw.save(); 
+  hw.status = "Completed";
+  await hw.save();
 
-    return hw;
+  return hw;
 };
 
-
-export {
-    getAllExternalHWService,
-    getExternalHwByIdService,
-    getMyExternalHWService,
-    getExternalHWByCourseService,
-    getMyExternalHwByIdService,
-    createExternalHwService,
-    updateExternalHwService,
-    deleteExternalHwService,
-    markExternalHwCompleteService,
-    
-};
+export { getAllExternalHWService, getExternalHwByIdService, getMyExternalHWService, getExternalHWByCourseService, getMyExternalHwByIdService, createExternalHwService, updateExternalHwService, deleteExternalHwService, markExternalHwCompleteService };

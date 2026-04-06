@@ -15,9 +15,7 @@ export const validate = (schema, source = "body") => {
     });
 
     if (error) {
-      const errorMessage = error.details
-        .map((detail) => detail.message)
-        .join(", ");
+      const errorMessage = error.details.map((detail) => detail.message).join(", ");
 
       return next(new AppErrorHelper(errorMessage, 400));
     }
@@ -48,9 +46,7 @@ export const validateMultiple = (schemas) => {
       });
 
       if (error) {
-        errors.push(
-          ...error.details.map((detail) => `${source}: ${detail.message}`)
-        );
+        errors.push(...error.details.map((detail) => `${source}: ${detail.message}`));
       } else {
         req[source] = value;
       }

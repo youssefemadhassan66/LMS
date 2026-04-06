@@ -1,61 +1,61 @@
 import mongoose from "mongoose";
 
-
-const TaskSchema = new mongoose.Schema({
-
-    title:{
-        type:String,
-        required:true,
+const TaskSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
     },
-    description:{
-        type:String,
-        required:true,
+    description: {
+      type: String,
+      required: true,
     },
-    taskLinks:[{
-        title:{type:String},
-        link:{type:String}
-    }],
-    dueDate:{
-        type:Date,
-        required:true,
+    taskLinks: [
+      {
+        title: { type: String },
+        link: { type: String },
+      },
+    ],
+    dueDate: {
+      type: Date,
+      required: true,
     },
-    sessionId:{
-        type:mongoose.Schema.ObjectId,
-        ref:"Session",
+    sessionId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Session",
+    },
+    studentId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    instructorId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "completed", "canceled"],
+      default: "pending",
+    },
+  },
+  { timestamps: true },
+);
 
-        
-    },
-    studentId:{
-        type:mongoose.Schema.ObjectId,
-        ref:"User",
-        required:true,
+TaskSchema.index({ studentId: 1, status: 1 });
+TaskSchema.index({ instructorId: 1 });
+TaskSchema.index({ sessionId: 1 });
+TaskSchema.index({ dueDate: 1 });
 
-    },
-    instructorId:{
-          type:mongoose.Schema.ObjectId,
-        ref:"User",
-        required:true,
-    },
-    status:{
-        type:String,
-        enum:["pending","completed","canceled"],
-        default:"pending"
-    },
-
-    
-},{timestamps:true})
-
-
-TaskSchema.pre(/^find/,async function(){
+TaskSchema.pre(/^find/, async function () {
   this.populate([
-    { path: 'sessionId', select: 'title description date summary' },
-    { path: 'studentId',  select: 'FullName UserName' },
-    { path: 'instructorId', select: 'FullName UserName' }
+    { path: "sessionId", select: "title description date summary" },
+    { path: "studentId", select: "FullName UserName" },
+    { path: "instructorId", select: "FullName UserName" },
   ]);
-    
-})
+});
 
-
-const Task = mongoose.model("Task",TaskSchema);
+const Task = mongoose.model("Task", TaskSchema);
 
 export default Task;
