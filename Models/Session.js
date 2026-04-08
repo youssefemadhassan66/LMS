@@ -29,9 +29,9 @@ const sessionSchema = new mongoose.Schema(
         },
       },
     ],
-    studentId: {
+    studentProfileId: {
       type: mongoose.Schema.ObjectId,
-      ref: "User",
+      ref: "StudentProfile",
       required: true,
     },
     instructorId: {
@@ -62,7 +62,7 @@ const sessionSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-sessionSchema.index({ studentId: 1, date: 1 });
+sessionSchema.index({ studentProfileId: 1, date: 1 });
 sessionSchema.index({ instructorId: 1 });
 // sessionSchema.index({ title: 1 }, { unique: true });
 sessionSchema.index({ date: 1 });

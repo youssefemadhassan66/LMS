@@ -118,7 +118,7 @@ const ProtectionService = async function (req) {
 
   // Check for the user if he is still active
 
-  const user = await User.findById(verifiedToken.id).select("_id role").lean();
+  const user = await User.findById(verifiedToken.id).select("_id role isActive").lean();
 
   if (!user || !user.isActive) {
     throw new AppErrorHelper("User not found ", 404);

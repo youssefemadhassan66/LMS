@@ -15,6 +15,9 @@ const createStudentProfileService = async (userId, profileData) => {
   if (!user || !user.isActive) {
     throw new AppErrorHelper("User not found ! ", 404);
   }
+  if(user.role !== "student"){
+    throw new AppErrorHelper("This user can't have a Student profile ", 404);
+  }
 
   const studentProfile = await StudentProfile.create({
     user: user._id,
@@ -48,7 +51,7 @@ const getStudentProfileService = async (profileId) => {
     throw new AppErrorHelper("Profile ID is required ! ", 400);
   }
 
-  const profile = await StudentProfile.findById(profileId).populate("user").populate("parents");
+  const profile = await StudentProfile.findById(profileId);
 
   return profile;
 };
@@ -58,9 +61,7 @@ const getMyStudentProfileServiceById = async (parent, childId) => {
     const profile = await StudentProfile.findOne({
       user: childId,
       parents: parent._id,
-    })
-      .populate("user", "FullName UserName email")
-      .lean();
+    }).lean();
 
     if (!profile) {
       throw new AppErrorHelper("Child not found or not authorized!", 404);
@@ -74,7 +75,7 @@ const getMyStudentProfileServiceById = async (parent, childId) => {
 
 const getMyStudentProfileService = async (user) => {
   if (user.role === "student") {
-    const profile = await StudentProfile.findOne({ user: user._id }).populate("user", "FullName UserName email");
+    const profile = await StudentProfile.findOne({ user: user._id });
 
     if (!profile) {
       throw new AppErrorHelper("Profile not found!", 404);
@@ -82,7 +83,7 @@ const getMyStudentProfileService = async (user) => {
 
     return profile;
   } else if (user.role === "parent") {
-    const profiles = await StudentProfile.find({ parents: user._id }).populate("user", "FullName UserName email");
+    const profiles = await StudentProfile.find({ parents: user._id });
 
     if (profiles.length === 0) {
       throw new AppErrorHelper("No children found!", 404);

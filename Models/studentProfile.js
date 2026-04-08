@@ -28,6 +28,11 @@ const studentProfileSchema = new mongoose.Schema(
 // studentProfileSchema.index({ user: 1 }, { unique: true });
 studentProfileSchema.index({ parents: 1 });
 
+studentProfileSchema.pre(/^find/,async function (){
+  this.populate({path:"parents" , select:"FullName UserName Email"})
+  this.populate({path:"user" , select:"FullName UserName Email"})
+})
+
 const StudentProfile = new mongoose.model("StudentProfile", studentProfileSchema);
 
 export default StudentProfile;
