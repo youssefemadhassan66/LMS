@@ -69,7 +69,9 @@ const getMyExternalCourseService = async (user, queryString) => {
     const childrenIds = childrenProfiles.map((profile) => profile.user);
 
     mongooseQuery = await ExternalCourse.find({ student: { $in: childrenIds } }).populate("student", "FullName UserName");
-  } else throw new AppErrorHelper("Not allowed", 403);
+  } 
+  
+  else throw new AppErrorHelper("Not allowed", 403);
 
   const features = new ApiFeatures(mongooseQuery, queryString).filter().sort().fields().pagination();
 
