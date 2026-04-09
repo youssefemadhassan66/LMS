@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Session from "../Models/Session.js";
 import User from "../Models/User.js";
 import StudentProfile from "../Models/studentProfile.js";
@@ -50,7 +51,61 @@ const getSessionByIdService = async (SessionId) => {
   return session;
 };
 
+const getMyAllSessionsService = async (user, queryString) => {
+  let mongooseQuery;
 
+  if (user.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: user._id });
+
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed!", 403);
+    }
+
+    mongooseQuery = Session.find({ studentProfileId: studentProfile._id });
+  } else if (user.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: user._id }, { _id: 1 });
+
+    if (!childrenProfiles.length) {
+      return [];
+    }
+
+    const childrenIds = childrenProfiles.map((profile) => profile._id);
+    mongooseQuery = Session.find({ studentProfileId: { $in: childrenIds } });
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  const features = new ApiFeatures(mongooseQuery, queryString).filter().sort().fields().pagination();
+  return await features.mongooseQuery;
+};
+
+
+
+const getMySessionByIdService = async (userData, sessionId) => {
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed!", 403);
+    }
+
+    const session = await Session.findOne({ studentProfileId: studentProfile._id, _id: sessionId });
+    return session;
+  }
+
+  if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
+
+    if (!childrenProfiles.length) {
+      throw new AppErrorHelper("Not allowed!", 403);
+    }
+
+    const childrenIds = childrenProfiles.map((profile) => profile._id);
+    const session = await Session.findOne({ _id: sessionId, studentProfileId: { $in: childrenIds } });
+    return session;
+  }
+
+  throw new AppErrorHelper("Not allowed!", 403);
+};
 
 const getAllSessionsService = async (queryString) => {
   const features = new ApiFeatures(Session.find({}), queryString).filter().sort().fields().pagination();
@@ -71,13 +126,6 @@ const getSessionsByInstructorService = async (instructorId, queryString = {}) =>
   const features = new ApiFeatures(Session.find({ instructorId }), queryString).sort().fields().pagination();
   return await features.mongooseQuery;
 };
-
-
-
-const getMySessionService = async (user)=>{
-
-  
-}
 
 
 
@@ -106,4 +154,14 @@ const deleteSessionByIdService = async (SessionId) => {
   return session;
 };
 
-export { createSessionService, getAllSessionsService, getSessionsByInstructorService, getSessionByIdService, getSessionsByStudentService, UpdateSessionByIdService, deleteSessionByIdService };
+export {
+  createSessionService,
+  getAllSessionsService,
+  getSessionsByInstructorService,
+  getSessionByIdService,
+  getSessionsByStudentService,
+  UpdateSessionByIdService,
+  deleteSessionByIdService,
+  getMyAllSessionsService,
+  getMySessionByIdService,
+};

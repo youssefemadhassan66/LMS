@@ -1,6 +1,15 @@
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import CatchAsync from "../Utilities/CatchAsync.js";
-import { createSessionService, getAllSessionsService, getSessionsByInstructorService, getSessionByIdService, getSessionsByStudentService, UpdateSessionByIdService, deleteSessionByIdService } from "../Services/sessionService.js";
+import { 
+  createSessionService,
+  getMyAllSessionsService,
+  getMySessionByIdService,
+  getAllSessionsService,
+  getSessionsByInstructorService,
+  getSessionByIdService, 
+  getSessionsByStudentService, 
+  UpdateSessionByIdService,
+  deleteSessionByIdService } from "../Services/sessionService.js";
 
 const CreateSessionController = CatchAsync(async (req, res, next) => {
   if (!req.body) {
@@ -106,4 +115,51 @@ const deleteSessionByIdController = CatchAsync(async (req, res, next) => {
   });
 });
 
-export { deleteSessionByIdController, UpdateSessionByIdController, getSessionByIdController, getSessionsByStudentController, getSessionsByInstructorController, getAllSessionsController, CreateSessionController };
+const getMyAllSessionController = CatchAsync(async (req,res,next)=>{
+
+  const docs = await getMyAllSessionsService(req.user,req.query);
+
+  if(!docs || docs.length === 0 ){
+    throw new AppErrorHelper("No Data Found !" , 404);
+  }
+
+ res.status(200).json({
+    status: "success",
+    data: {
+      results: docs.length,
+      docs: docs,
+    },
+  });
+})
+
+const getMySessionByIdController = CatchAsync(async (req,res,next)=>{
+
+
+  const session = await getMySessionByIdService(req.user,req.params.id);
+
+  if(!session ){
+    throw new AppErrorHelper("No Data Found !" , 404);
+  }
+
+ res.status(200).json({
+    status: "success",
+    data: {
+      session: session,
+    },
+  });
+})
+
+
+
+
+export { 
+  deleteSessionByIdController, 
+  UpdateSessionByIdController, 
+  getSessionByIdController, 
+  getSessionsByStudentController, 
+  getSessionsByInstructorController,
+  getAllSessionsController,
+  CreateSessionController,
+  getMySessionByIdController,
+  getMyAllSessionController
+};

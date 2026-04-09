@@ -8,29 +8,32 @@ import {
   getSessionsByInstructorController,
   getAllSessionsController,
   CreateSessionController,
+  getMyAllSessionController,
+  getMySessionByIdController,
+
 } from "../Controllers/SessionController.js";
+import { get } from "http";
 
 const router = express.Router();
 
 router.use(protectionController);
 
+router.get("/me/:id",restrictedToController("student" , "parent",getMySessionByIdController));
 
-router.get("/", getAllSessionsController);
+router.get("/me/",restrictedToController("student" , "parent",getMyAllSessionController));
 
-
-router.get("/student/:id", getSessionsByStudentController);
-
-
-router.get("/instructor/:id", getSessionsByInstructorController);
-
-
-router.get("/:id", getSessionByIdController);
 
 router.use(restrictedToController("admin", "instructor"));
 
+router.get("/", getAllSessionsController);
+
+router.get("/student/:id", getSessionsByStudentController);
+
+router.get("/instructor/:id", getSessionsByInstructorController);
+
+router.get("/:id", getSessionByIdController);
 
 router.post("/", CreateSessionController);
-
 
 router.route("/:id").patch(UpdateSessionByIdController).delete(deleteSessionByIdController);
 
