@@ -12,7 +12,6 @@ import {
   getMySessionByIdController,
 
 } from "../Controllers/SessionController.js";
-import { get } from "http";
 
 const router = express.Router();
 

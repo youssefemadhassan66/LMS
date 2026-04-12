@@ -120,4 +120,8 @@ erDiagram
 - **Email**: Nodemailer
 - **Process Management**: PM2
 
+<<<<<<< HEAD
 This LMS backend provides a robust foundation for educational platforms, enabling efficient management of learning processes and stakeholder interactions.
+=======
+This LMS backend provides a robust foundation for educational platforms, enabling efficient management of learning processes and stakeholder interactions.
+>>>>>>> abd25aa (Adjusted Task Servies and contoller and router)
