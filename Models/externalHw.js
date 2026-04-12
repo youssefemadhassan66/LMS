@@ -73,10 +73,14 @@ externalHWSchema.pre("save", function () {
 externalHWSchema.pre(/^find/, function () {
   this.populate({
     path: "externalCourse",
-    select: "student subject teacher",
+    select: "studentProfileId subject teacher",
     populate: {
-      path: "student",
-      select: "FullName UserName ",
+      path: "studentProfileId",
+      select: "user grade",
+      populate: {
+        path: "user",
+        select: "FullName UserName",
+      },
     },
   });
 });
