@@ -1,0 +1,21 @@
+erDiagram
+    User ||--o{ StudentProfile : "1:1 (as student)"
+    User ||--o{ StudentProfile : "1:many (as parent)"
+    User ||--o{ Session : "1:many (instructor)"
+    User ||--o{ Task : "1:many (instructor)"
+    User ||--o{ Submission : "1:many (student)"
+    User ||--o{ SessionReview : "1:many (student)"
+    User ||--o{ SessionReview : "1:many (instructor)"
+    User ||--o{ ExternalCourse : "1:many (creator)"
+    User ||--o{ ExternalCourse : "1:many (student)"
+    User ||--o{ Token : "1:many"
+
+    StudentProfile ||--o{ Session : "1:many"
+    StudentProfile ||--o{ Task : "1:many"
+
+    Session ||--o{ Task : "1:many"
+    Session ||--o{ SessionReview : "1:many"
+
+    Task ||--o{ Submission : "1:many"
+
+    ExternalCourse ||--o{ ExternalHw : "1:many"

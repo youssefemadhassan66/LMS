@@ -2,10 +2,13 @@ import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import {
   createTaskServices,
   getAllTasksService,
+  getAllMyTasksService,
   getTaskByIdService,
   getTasksBySessionIdService,
   getTasksByStudentIdService,
   getTasksStatsByStudentIdService,
+  getMyTasksStatsService,
+  getMyTaskByIdService,
   updateTaskByIdService,
   deleteTaskByIdService,
   updateTaskStatusService,
@@ -67,6 +70,48 @@ const getTasksBySessionIdController = CatchAsync(async (req, res, next) => {
     data: {
       results: tasks.length,
       tasks: tasks,
+    },
+  });
+});
+
+const getAllMyTasksController = CatchAsync(async (req, res, next) => {
+  const tasks = await getAllMyTasksService(req.user, req.query);
+
+  if (!tasks) {
+    return next(new AppErrorHelper(" No tasks found ! ", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      results: tasks.length,
+      tasks: tasks,
+    },
+  });
+});
+
+const getMyTaskByIdController = CatchAsync(async (req, res, next) => {
+  const task = await getMyTaskByIdService(req.user, req.params.id);
+
+  if (!task) {
+    return next(new AppErrorHelper(" No task found ! ", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      task: task,
+    },
+  });
+});
+
+const getMyTasksStatsController = CatchAsync(async (req, res, next) => {
+  const stats = await getMyTasksStatsService(req.user);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      stats,
     },
   });
 });
@@ -135,10 +180,13 @@ const updateTaskStatusController = CatchAsync(async (req, res, next) => {
 export {
   createTaskController,
   getAllTasksController,
+  getAllMyTasksController,
   getTaskByIdController,
   getTasksBySessionIdController,
   getTasksByStudentIdController,
   getTasksStatsByStudentIdController,
+  getMyTasksStatsController,
+  getMyTaskByIdController,
   updateTaskByIdController,
   updateTaskStatusController,
   deleteTaskByIdController,

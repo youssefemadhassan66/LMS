@@ -23,10 +23,11 @@ const TaskSchema = new mongoose.Schema(
     sessionId: {
       type: mongoose.Schema.ObjectId,
       ref: "Session",
+      required: true,
     },
-    studentId: {
+    studentProfileId: {
       type: mongoose.Schema.ObjectId,
-      ref: "User",
+      ref: "StudentProfile",
       required: true,
     },
     instructorId: {
@@ -43,7 +44,7 @@ const TaskSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-TaskSchema.index({ studentId: 1, status: 1 });
+TaskSchema.index({ studentProfileId: 1, status: 1 });
 TaskSchema.index({ instructorId: 1 });
 TaskSchema.index({ sessionId: 1 });
 TaskSchema.index({ dueDate: 1 });
@@ -51,7 +52,7 @@ TaskSchema.index({ dueDate: 1 });
 TaskSchema.pre(/^find/, async function () {
   this.populate([
     { path: "sessionId", select: "title description date summary" },
-    { path: "studentId", select: "FullName UserName" },
+    { path: "studentProfileId", select: "user grade" },
     { path: "instructorId", select: "FullName UserName" },
   ]);
 });

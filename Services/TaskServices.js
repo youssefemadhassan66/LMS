@@ -1,4 +1,5 @@
 import Task from "../Models/Task.js";
+import StudentProfile from "../Models/studentProfile.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import Session from "../Models/Session.js";
@@ -7,30 +8,43 @@ import mongoose from "mongoose";
 
 const createTaskServices = async (data) => {
   if (!data) {
-    throw new AppErrorHelper("Data is missing ! ", 404);
+    throw new AppErrorHelper("Data is missing!", 404);
   }
 
-  const { sessionId, studentId, instructorId, title, dueDate, taskLinks, description, status } = data;
+  const { sessionId, studentProfileId, instructorId, title, dueDate, taskLinks, description, status } = data;
 
-  const student = await User.findById(studentId);
   const instructor = await User.findById(instructorId);
   const session = await Session.findById(sessionId);
 
-  if (!student || !instructor) {
-    throw new AppErrorHelper(" User not found  ! ", 404);
+  if (!instructor) {
+    throw new AppErrorHelper("Instructor not found!", 404);
   }
 
   if (!session) {
-    throw new AppErrorHelper(" session not found  ! ", 404);
+    throw new AppErrorHelper("Session not found!", 404);
   }
 
-  if (student.role !== "student" || instructor.role !== "instructor") {
-    throw new AppErrorHelper("Wrong assignment of roles !", 400);
+  const resolvedStudentProfileId = studentProfileId ? studentProfileId : session.studentProfileId;
+  if (!resolvedStudentProfileId) {
+    throw new AppErrorHelper("Student profile id is required!", 400);
+  }
+
+  const studentProfile = await StudentProfile.findById(resolvedStudentProfileId);
+  if (!studentProfile) {
+    throw new AppErrorHelper("Student profile not found!", 404);
+  }
+
+  if (studentProfileId && session.studentProfileId.toString() !== studentProfileId.toString()) {
+    throw new AppErrorHelper("Student profile id does not match session student profile id!", 400);
+  }
+
+  if (instructor.role !== "instructor") {
+    throw new AppErrorHelper("Wrong assignment of roles!", 400);
   }
 
   return await Task.create({
     sessionId: sessionId,
-    studentId: studentId,
+    studentProfileId: session.studentProfileId,
     instructorId: instructorId,
     title: title || "",
     taskLinks: taskLinks || [],
@@ -56,14 +70,65 @@ const getTaskByIdService = async (taskId) => {
   return task;
 };
 
+const getAllMyTasksService = async (userData, queryString) => {
+  let mongooseQuery;
+
+  if (userData.role == "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not Allowed", 403);
+    }
+
+    mongooseQuery = Task.find({ studentProfileId: studentProfile._id });
+  } else if (userData.role == "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id });
+
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      throw new AppErrorHelper("Not Allowed", 403);
+    }
+    const ProfilesIDs = childrenProfiles.map((profile) => profile._id);
+
+    mongooseQuery = Task.find({ studentProfileId: { $in: ProfilesIDs } });
+  } else {
+    throw new AppErrorHelper("Not Allowed", 403);
+  }
+
+  const features = new ApiFeatures(mongooseQuery, queryString).filter().sort().fields().pagination();
+  return await features.mongooseQuery;
+};
+
+const getMyTaskByIdService = async (userData, taskId) => {
+  if (userData.role == "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not Allowed", 403);
+    }
+
+    return await Task.findOne({ studentProfileId: studentProfile._id, _id: taskId });
+  } else if (userData.role == "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id });
+
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      throw new AppErrorHelper("Not Allowed", 403);
+    }
+    const ProfilesIDs = childrenProfiles.map((profile) => profile._id);
+
+    return await Task.findOne({ studentProfileId: { $in: ProfilesIDs }, _id: taskId });
+  } else {
+    throw new AppErrorHelper("Not Allowed", 403);
+  }
+};
+
 const getTasksBySessionIdService = async (sessionId, queryString = {}) => {
   const features = new ApiFeatures(Task.find({ sessionId: sessionId }), queryString).filter().sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
 
-const getTasksByStudentIdService = async (studentId, queryString = {}) => {
-  const features = new ApiFeatures(Task.find({ studentId: studentId }), queryString).filter().sort().fields().pagination();
+const getTasksByStudentIdService = async (studentProfileId, queryString = {}) => {
+  const features = new ApiFeatures(Task.find({ studentProfileId: studentProfileId }), queryString).filter().sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
@@ -105,6 +170,7 @@ const updateTaskStatusService = async (TaskId, status) => {
   return task;
 };
 
+
 const deleteTaskByIdService = async (TaskId) => {
   const deletedTask = await Task.findByIdAndDelete(TaskId);
 
@@ -113,14 +179,14 @@ const deleteTaskByIdService = async (TaskId) => {
   return deletedTask;
 };
 
-const getTasksStatsByStudentIdService = async (studentId) => {
-  if (!mongoose.Types.ObjectId.isValid(studentId)) {
-    throw new AppErrorHelper("Invalid student id!", 400);
+const getTasksStatsByStudentIdService = async (studentProfileId) => {
+  if (!mongoose.Types.ObjectId.isValid(studentProfileId)) {
+    throw new AppErrorHelper("Invalid student profile id!", 400);
   }
 
   const stats = await Task.aggregate([
     {
-      $match: { studentId: new mongoose.Types.ObjectId(studentId) },
+      $match: { studentProfileId: new mongoose.Types.ObjectId(studentProfileId) },
     },
     {
       $group: {
@@ -158,7 +224,94 @@ const getTasksStatsByStudentIdService = async (studentId) => {
     },
   ]);
 
-  return stats[0] || {};
+  return stats[0] || {
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    canceledTasks: 0,
+    completionRate: 0,
+  };
 };
 
-export { createTaskServices, getAllTasksService, getTaskByIdService, getTasksBySessionIdService, getTasksByStudentIdService, getTasksStatsByStudentIdService, updateTaskByIdService, updateTaskStatusService, deleteTaskByIdService };
+const getMyTasksStatsService = async (userData) => {
+  let studentProfileIds;
+
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    studentProfileIds = [studentProfile._id];
+  } else if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id });
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    studentProfileIds = childrenProfiles.map((profile) => profile._id);
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  const stats = await Task.aggregate([
+    {
+      $match: { studentProfileId: { $in: studentProfileIds } },
+    },
+    {
+      $group: {
+        _id: null,
+        totalTasks: { $sum: 1 },
+        completedTasks: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "completed"] }, 1, 0],
+          },
+        },
+        pendingTasks: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "pending"] }, 1, 0],
+          },
+        },
+        canceledTasks: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "canceled"] }, 1, 0],
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        completionRate: {
+          $cond: [
+            { $eq: ["$totalTasks", 0] },
+            0,
+            {
+              $multiply: [{ $divide: ["$completedTasks", "$totalTasks"] }, 100],
+            },
+          ],
+        },
+      },
+    },
+  ]);
+
+  return stats[0] || {
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    canceledTasks: 0,
+    completionRate: 0,
+  };
+};
+
+export {
+  createTaskServices,
+  getAllMyTasksService,
+  getMyTaskByIdService,
+  getAllTasksService,
+  getTaskByIdService,
+  getTasksBySessionIdService,
+  getTasksByStudentIdService,
+  getTasksStatsByStudentIdService,
+  getMyTasksStatsService,
+  updateTaskByIdService,
+  updateTaskStatusService,
+  deleteTaskByIdService,
+};
