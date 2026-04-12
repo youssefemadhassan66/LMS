@@ -7,6 +7,9 @@ import {
   getSessionReviewsByStudentService,
   getSessionReviewsByInstructorService,
   getSessionReviewsBySessionService,
+  getAllMySessionReviewsService,
+  getMySessionReviewService,
+  getMySessionReviewStatsService,
   updateSessionReviewByIdService,
   deleteSessionReviewByIdService,
   getStudentReviewStatsService,
@@ -91,6 +94,48 @@ const getSessionReviewsBySessionController = CatchAsync(async (req, res, next) =
   });
 });
 
+const getAllMySessionReviewsController = CatchAsync(async (req, res, next) => {
+  const docs = await getAllMySessionReviewsService(req.user, req.query);
+
+  if (!docs || docs.length === 0) {
+    return next(new AppErrorHelper("No documents found!", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      results: docs.length,
+      docs: docs,
+    },
+  });
+});
+
+const getMySessionReviewController = CatchAsync(async (req, res, next) => {
+  const review = await getMySessionReviewService(req.user, req.params.id);
+
+  if (!review) {
+    return next(new AppErrorHelper("No document found!", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      review: review,
+    },
+  });
+});
+
+const getMySessionReviewStatsController = CatchAsync(async (req, res, next) => {
+  const stats = await getMySessionReviewStatsService(req.user);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      stats: stats,
+    },
+  });
+});
+
 const updateSessionReviewByIdController = CatchAsync(async (req, res, next) => {
   const review = await updateSessionReviewByIdService(req.params.id, req.body);
 
@@ -136,9 +181,12 @@ const getStudentReviewStatsController = CatchAsync(async (req, res, next) => {
 export {
   createSessionReviewController,
   getAllSessionReviewsController,
+  getAllMySessionReviewsController,
   getSessionReviewsByStudentController,
   getSessionReviewsByInstructorController,
   getSessionReviewsBySessionController,
+  getMySessionReviewController,
+  getMySessionReviewStatsController,
   updateSessionReviewByIdController,
   deleteSessionReviewByIdController,
   getStudentReviewStatsController,

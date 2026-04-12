@@ -6,42 +6,54 @@ import StudentProfile from "../Models/studentProfile.js";
 import mongoose from "mongoose";
 
 const createExternalCourseService = async (data) => {
-  const { teacher, subject, createdBy, student, color } = { ...data };
+  const { teacher, subject, createdBy, studentProfileId, studentId, color } = { ...data };
 
-  const studentData = await User.findById(student);
+  let resolvedStudentProfileId = studentProfileId;
 
-  if (!studentData) {
-    throw new AppErrorHelper("User not found!", 404);
+  if (!resolvedStudentProfileId && studentId) {
+    const studentProfile = await StudentProfile.findOne({ user: studentId });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Student profile not found!", 404);
+    }
+    resolvedStudentProfileId = studentProfile._id;
   }
 
-  if (studentData.role !== "student") {
-    throw new AppErrorHelper("Wrong assignment of roles!", 400);
+  if (!resolvedStudentProfileId) {
+    throw new AppErrorHelper("Student profile id is required!", 400);
+  }
+
+  const studentProfile = await StudentProfile.findById(resolvedStudentProfileId);
+  if (!studentProfile) {
+    throw new AppErrorHelper("Student profile not found!", 404);
   }
 
   return await ExternalCourse.create({
     teacher: teacher,
     subject: subject,
     createdBy: createdBy,
-    student: student,
+    studentProfileId: resolvedStudentProfileId,
     color: color,
   });
 };
 
 const getMyExternalCourseByIdService = async (user, courseId) => {
-  const exCourse = await ExternalCourse.findById(courseId).populate("student", "FullName UserName").populate("createdBy", "FullName UserName");
+  const exCourse = await ExternalCourse.findById(courseId)
+    .populate({ path: "studentProfileId", select: "user grade", populate: { path: "user", select: "FullName UserName" } })
+    .populate("createdBy", "FullName UserName");
 
   if (!exCourse) {
     throw new AppErrorHelper("Course not found", 404);
   }
 
   if (user.role === "student") {
-    if (exCourse.student._id.toString() !== user.id) {
+    const studentProfile = await StudentProfile.findOne({ user: user._id });
+    if (!studentProfile || exCourse.studentProfileId._id.toString() !== studentProfile._id.toString()) {
       throw new AppErrorHelper("Not allowed !", 403);
     }
   } else if (user.role === "parent") {
-    const childProfile = await StudentProfile.find({
-      user: exCourse.student._id,
-      parents: new mongoose.Types.ObjectId(user.id),
+    const childProfile = await StudentProfile.findOne({
+      _id: exCourse.studentProfileId._id,
+      parents: new mongoose.Types.ObjectId(user._id),
     });
 
     if (!childProfile) {
@@ -58,20 +70,24 @@ const getMyExternalCourseService = async (user, queryString) => {
   let mongooseQuery;
 
   if (user.role === "student") {
-    mongooseQuery = ExternalCourse.find({ student: user.id }).populate("student", "FullName UserName");
+    const studentProfile = await StudentProfile.findOne({ user: user._id });
+    if (!studentProfile) {
+      return [];
+    }
+    mongooseQuery = ExternalCourse.find({ studentProfileId: studentProfile._id }).populate({ path: "studentProfileId", select: "user grade", populate: { path: "user", select: "FullName UserName" } });
   } else if (user.role === "parent") {
-    const childrenProfiles = await StudentProfile.find({ parents: new mongoose.Types.ObjectId(user._id) }, { user: 1 });
+    const childrenProfiles = await StudentProfile.find({ parents: new mongoose.Types.ObjectId(user._id) }, { _id: 1 });
 
     if (!childrenProfiles.length) {
       return [];
     }
 
-    const childrenIds = childrenProfiles.map((profile) => profile.user);
+    const childrenIds = childrenProfiles.map((profile) => profile._id);
 
-    mongooseQuery = await ExternalCourse.find({ student: { $in: childrenIds } }).populate("student", "FullName UserName");
-  } 
-  
-  else throw new AppErrorHelper("Not allowed", 403);
+    mongooseQuery = ExternalCourse.find({ studentProfileId: { $in: childrenIds } }).populate({ path: "studentProfileId", select: "user grade", populate: { path: "user", select: "FullName UserName" } });
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
 
   const features = new ApiFeatures(mongooseQuery, queryString).filter().sort().fields().pagination();
 
@@ -93,8 +109,8 @@ const getExternalCourseByIdService = async (exCourseId) => {
   return exCourse;
 };
 
-const getExternalCourseByStudentService = async (studentId, queryString = {}) => {
-  const features = new ApiFeatures(ExternalCourse.find({ student: studentId }), queryString).sort().fields().pagination();
+const getExternalCourseByStudentService = async (studentProfileId, queryString = {}) => {
+  const features = new ApiFeatures(ExternalCourse.find({ studentProfileId }), queryString).sort().fields().pagination();
   return await features.mongooseQuery;
 };
 
@@ -104,7 +120,27 @@ const updateExternalCourseService = async (exCourseId, data) => {
     runValidators: true,
   };
 
-  const exCourse = await ExternalCourse.findByIdAndUpdate(exCourseId, data, options);
+  const updateData = { ...data };
+
+  if (updateData.studentId) {
+    const studentProfile = await StudentProfile.findOne({ user: updateData.studentId });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Student profile not found!", 404);
+    }
+    updateData.studentProfileId = studentProfile._id;
+    delete updateData.studentId;
+  }
+
+  if (updateData.student && !updateData.studentProfileId) {
+    const studentProfile = await StudentProfile.findById(updateData.student);
+    if (!studentProfile) {
+      throw new AppErrorHelper("Student profile not found!", 404);
+    }
+    updateData.studentProfileId = studentProfile._id;
+    delete updateData.student;
+  }
+
+  const exCourse = await ExternalCourse.findByIdAndUpdate(exCourseId, updateData, options);
 
   if (!exCourse) {
     throw new AppErrorHelper("Course not found ! ", 404);

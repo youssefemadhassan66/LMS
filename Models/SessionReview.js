@@ -7,9 +7,9 @@ const SessionReviewSchema = new mongoose.Schema(
       ref: "Session",
       required: true,
     },
-    Student: {
+    studentProfileId: {
       type: mongoose.Schema.ObjectId,
-      ref: "User",
+      ref: "StudentProfile",
       required: true,
     },
     Instructor: {
@@ -52,10 +52,10 @@ const SessionReviewSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-SessionReviewSchema.index({ Student: 1 });
+SessionReviewSchema.index({ studentProfileId: 1 });
 SessionReviewSchema.index({ createdAt: 1 });
 
-SessionReviewSchema.index({ session: 1, Student: 1 }, { unique: true });
+SessionReviewSchema.index({ session: 1, studentProfileId: 1 }, { unique: true });
 
 SessionReviewSchema.pre("save", function () {
   this.overAllRating = (this.Behavior + this.underStanding + this.participation + this.coding) / 4;

@@ -30,22 +30,25 @@ const getMyExternalHWService = async (user, queryString = {}) => {
   let mongooseQuery;
 
   if (user.role === "student") {
-    mongooseQuery = ExternalHW.find({}).populate({
-      path: "externalCourse",
-      match: { student: user.id },
-      select: "subject teacher student",
-    });
+    const studentProfile = await StudentProfile.findOne({ user: user._id }, { _id: 1 });
+    if (!studentProfile) {
+      return [];
+    }
+
+    const courses = await ExternalCourse.find({ studentProfileId: studentProfile._id }, { _id: 1 });
+    const courseIds = courses.map((c) => c._id);
+
+    mongooseQuery = ExternalHW.find({ externalCourse: { $in: courseIds } });
   } else if (user.role === "parent") {
-    // Parents see HWs of their linked children
-    const childrenProfiles = await StudentProfile.find({ parents: new mongoose.Types.ObjectId(user.id) }, { user: 1 });
+    const childrenProfiles = await StudentProfile.find({ parents: new mongoose.Types.ObjectId(user._id) }, { _id: 1 });
 
     if (!childrenProfiles.length) {
       return [];
     }
 
-    const childrenIds = childrenProfiles.map((profile) => profile.user);
+    const childrenIds = childrenProfiles.map((profile) => profile._id);
 
-    const courses = await ExternalCourse.find({ student: { $in: childrenIds } }, { _id: 1 });
+    const courses = await ExternalCourse.find({ studentProfileId: { $in: childrenIds } }, { _id: 1 });
 
     const courseIds = courses.map((c) => c._id);
 
@@ -112,16 +115,17 @@ const getMyExternalHwByIdService = async (user, hwId) => {
   }
 
   if (user.role === "student") {
-    if (course.student.toString() !== user.id) {
+    const studentProfile = await StudentProfile.findOne({ user: user._id }, { _id: 1 });
+    if (!studentProfile || course.studentProfileId.toString() !== studentProfile._id.toString()) {
       throw new AppErrorHelper("Not allowed!", 403);
     }
   } else if (user.role === "parent") {
-    const childProfile = await StudentProfile.find({
-      user: course.student,
-      parents: new mongoose.Types.ObjectId(user.id),
+    const childProfile = await StudentProfile.findOne({
+      _id: course.studentProfileId,
+      parents: new mongoose.Types.ObjectId(user._id),
     });
 
-    if (!childProfile || childProfile.length === 0) {
+    if (!childProfile) {
       throw new AppErrorHelper("Not allowed!", 403);
     }
   } else {

@@ -16,9 +16,9 @@ const externalCourseSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "User",
     },
-    student: {
+    studentProfileId: {
       type: mongoose.Schema.ObjectId,
-      ref: "User",
+      ref: "StudentProfile",
       required: true,
     },
     color: { type: String },
@@ -26,7 +26,7 @@ const externalCourseSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-externalCourseSchema.index({ student: 1 });
+externalCourseSchema.index({ studentProfileId: 1 });
 externalCourseSchema.index({ createdBy: 1 });
 
 externalCourseSchema.pre("save", async function () {

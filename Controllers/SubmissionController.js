@@ -4,6 +4,9 @@ import {
   getSubmissionByIdService,
   getSubmissionsByTaskIdService,
   getSubmissionsByStudentIdService,
+  getAllMySubmissionsService,
+  getMySubmissionService,
+  getMySubmissionStatsService,
   updateSubmissionByIdService,
   deleteSubmissionByIdService,
   updateSubmissionStatusService,
@@ -82,6 +85,45 @@ const getSubmissionsByStudentIdController = CatchAsync(async (req, res, next) =>
     status: "success",
     results: submissions.length,
     data: { submissions },
+  });
+});
+
+// ─── Read (my submissions) ─────────────────────────────────────────────────────
+/**
+ * GET /submissions/me
+ */
+const getAllMySubmissionsController = CatchAsync(async (req, res, next) => {
+  const submissions = await getAllMySubmissionsService(req.user, req.query);
+
+  res.status(200).json({
+    status: "success",
+    results: submissions.length,
+    data: { submissions },
+  });
+});
+
+/**
+ * GET /submissions/me/:id
+ */
+const getMySubmissionController = CatchAsync(async (req, res, next) => {
+  const submission = await getMySubmissionService(req.user, req.params.id);
+
+  res.status(200).json({
+    status: "success",
+    data: { submission },
+  });
+});
+
+// ─── Stats (my submissions) ───────────────────────────────────────────────────
+/**
+ * GET /submissions/me/stats
+ */
+const getMySubmissionStatsController = CatchAsync(async (req, res, next) => {
+  const stats = await getMySubmissionStatsService(req.user);
+
+  res.status(200).json({
+    status: "success",
+    data: { stats },
   });
 });
 
@@ -210,6 +252,9 @@ export {
   getSubmissionByIdController,
   getSubmissionsByTaskIdController,
   getSubmissionsByStudentIdController,
+  getAllMySubmissionsController,
+  getMySubmissionController,
+  getMySubmissionStatsController,
   getSubmissionStatsByStudentIdController,
   getTasksDueDateBucketsController,
   updateSubmissionByIdController,

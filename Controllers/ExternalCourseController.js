@@ -1,6 +1,6 @@
 import CatchAsync from "../Utilities/CatchAsync.js";
 import {
-  CreateExternalCourseService,
+  createExternalCourseService,
   getMyExternalCourseService,
   getMyExternalCourseByIdService,
   getAllExternalCoursesService,
@@ -16,7 +16,7 @@ const CreateExternalCourseController = CatchAsync(async (req, res, next) => {
     return next(new AppErrorHelper("Data is missing!", 400));
   }
 
-  const course = await CreateExternalCourseService(req.body);
+  const course = await createExternalCourseService(req.body);
 
   res.status(201).json({
     status: "success",

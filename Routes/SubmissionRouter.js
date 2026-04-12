@@ -7,6 +7,9 @@ import {
   getSubmissionByIdController,
   getSubmissionsByTaskIdController,
   getSubmissionsByStudentIdController,
+  getAllMySubmissionsController,
+  getMySubmissionController,
+  getMySubmissionStatsController,
   getSubmissionStatsByStudentIdController,
   getTasksDueDateBucketsController,
   updateSubmissionByIdController,
@@ -29,6 +32,9 @@ router.get("/", getAllSubmissionsController);
 
 router.get("/task/:taskId", getSubmissionsByTaskIdController);
 
+router.get("/me", getAllMySubmissionsController);
+router.get("/me/stats", getMySubmissionStatsController);
+router.get("/me/:id", getMySubmissionController);
 
 router.get("/student/:studentId/stats", getSubmissionStatsByStudentIdController);
 

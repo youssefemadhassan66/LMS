@@ -6,9 +6,10 @@ const SubmissionSchema = mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Task",
     },
-    student: {
+    studentProfileId: {
       type: mongoose.Schema.ObjectId,
-      ref: "User",
+      ref: "StudentProfile",
+      required: true,
     },
     SubmissionDate: {
       type: Date,
@@ -44,15 +45,15 @@ const SubmissionSchema = mongoose.Schema(
   { timestamps: true },
 );
 
-SubmissionSchema.index({ task: 1, student: 1 });
-SubmissionSchema.index({ student: 1 });
+SubmissionSchema.index({ task: 1, studentProfileId: 1 });
+SubmissionSchema.index({ studentProfileId: 1 });
 SubmissionSchema.index({ status: 1 });
 
 // ─── Pre-find ─────────────────────────────────────────────────────────────────
 SubmissionSchema.pre(/^find/, async function () {
   this.populate([
     { path: "task", select: "title dueDate" },
-    { path: "student", select: "userName FullName" },
+    { path: "studentProfileId", select: "user grade" },
   ]);
 });
 

@@ -1,6 +1,7 @@
 import Submission from "../Models/Submission.js";
 import Task from "../Models/Task.js";
 import User from "../Models/User.js";
+import StudentProfile from "../Models/studentProfile.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import mongoose from "mongoose";
@@ -12,27 +13,39 @@ const createSubmissionService = async (data) => {
     throw new AppErrorHelper("Data is missing!", 400);
   }
 
-  const { taskId, studentId, Task_links, note } = data;
+  const { taskId, studentProfileId, studentId, Task_links, note } = data;
 
-  // Check task
   const task = await Task.findById(taskId);
   if (!task) {
     throw new AppErrorHelper("Task not found!", 404);
   }
 
-  const student = await User.findById(studentId);
-  if (!student) {
-    throw new AppErrorHelper("Student not found!", 404);
+  let resolvedStudentProfileId = studentProfileId;
+
+  if (!resolvedStudentProfileId && studentId) {
+    const studentProfile = await StudentProfile.findOne({ user: studentId });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Student profile not found!", 404);
+    }
+    resolvedStudentProfileId = studentProfile._id;
   }
 
-  if (student.role !== "student") {
-    throw new AppErrorHelper("Invalid student role!", 400);
+  if (!resolvedStudentProfileId) {
+    throw new AppErrorHelper("Student profile id is required!", 400);
   }
 
-  // Prevent duplicate submission
+  const studentProfile = await StudentProfile.findById(resolvedStudentProfileId);
+  if (!studentProfile) {
+    throw new AppErrorHelper("Student profile not found!", 404);
+  }
+
+  if (task.studentProfileId && task.studentProfileId.toString() !== resolvedStudentProfileId.toString()) {
+    throw new AppErrorHelper("Task does not belong to this student profile!", 400);
+  }
+
   const existing = await Submission.findOne({
     task: taskId,
-    student: studentId,
+    studentProfileId: resolvedStudentProfileId,
   });
 
   if (existing) {
@@ -41,7 +54,7 @@ const createSubmissionService = async (data) => {
 
   const submission = await Submission.create({
     task: taskId,
-    student: studentId,
+    studentProfileId: resolvedStudentProfileId,
     Task_links: Task_links || [],
     note,
     status: "Pending",
@@ -56,6 +69,8 @@ const getAllSubmissionsService = async (queryString = {}) => {
   return await features.mongooseQuery;
 };
 
+
+
 const getSubmissionByIdService = async (submissionId) => {
   const submission = await Submission.findById(submissionId);
 
@@ -65,6 +80,7 @@ const getSubmissionByIdService = async (submissionId) => {
 
   return submission;
 };
+
 
 const getSubmissionsByTaskIdService = async (taskId, queryString = {}) => {
   const task = await Task.findById(taskId);
@@ -77,15 +93,19 @@ const getSubmissionsByTaskIdService = async (taskId, queryString = {}) => {
   return await features.mongooseQuery;
 };
 
-const getSubmissionsByStudentIdService = async (studentId, queryString = {}) => {
-  if (!mongoose.Types.ObjectId.isValid(studentId)) {
-    throw new AppErrorHelper("Invalid student id!", 400);
+
+
+const getSubmissionsByStudentIdService = async (studentProfileId, queryString = {}) => {
+  if (!mongoose.Types.ObjectId.isValid(studentProfileId)) {
+    throw new AppErrorHelper("Invalid student profile id!", 400);
   }
 
-  const features = new ApiFeatures(Submission.find({ student: studentId }), queryString).filter().sort().fields().pagination();
+  const features = new ApiFeatures(Submission.find({ studentProfileId }), queryString).filter().sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
+
+
 
 const updateSubmissionByIdService = async (submissionId, data) => {
   const { Task_links, note } = data;
@@ -161,13 +181,13 @@ const reviewSubmissionService = async (submissionId, reviewData) => {
   return await submission.save();
 };
 
-const getSubmissionStatsByStudentIdService = async (studentId) => {
-  if (!mongoose.Types.ObjectId.isValid(studentId)) {
-    throw new AppErrorHelper("Invalid student id!", 400);
+const getSubmissionStatsByStudentIdService = async (studentProfileId) => {
+  if (!mongoose.Types.ObjectId.isValid(studentProfileId)) {
+    throw new AppErrorHelper("Invalid student profile id!", 400);
   }
 
   const stats = await Submission.aggregate([
-    { $match: { student: new mongoose.Types.ObjectId(studentId) } },
+    { $match: { studentProfileId: new mongoose.Types.ObjectId(studentProfileId) } },
     {
       $group: {
         _id: null,
@@ -184,13 +204,104 @@ const getSubmissionStatsByStudentIdService = async (studentId) => {
   return stats[0] || {};
 };
 
-const getTasksDueDateBucketsService = async (studentId) => {
+const getAllMySubmissionsService = async (userData, queryString = {}) => {
+  let profileIds;
+
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = [studentProfile._id];
+  } else if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = childrenProfiles.map((profile) => profile._id);
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  const features = new ApiFeatures(Submission.find({ studentProfileId: { $in: profileIds } }), queryString)
+    .filter()
+    .sort()
+    .fields()
+    .pagination();
+
+  return await features.mongooseQuery;
+};
+
+const getMySubmissionService = async (userData, submissionId) => {
+  let profileIds;
+
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = [studentProfile._id];
+  } else if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = childrenProfiles.map((profile) => profile._id);
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  const submission = await Submission.findOne({ _id: submissionId, studentProfileId: { $in: profileIds } });
+  if (!submission) {
+    throw new AppErrorHelper("Submission not found!", 404);
+  }
+  return submission;
+};
+
+const getMySubmissionStatsService = async (userData) => {
+  let profileIds;
+
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = [studentProfile._id];
+  } else if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = childrenProfiles.map((profile) => profile._id);
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  const stats = await Submission.aggregate([
+    { $match: { studentProfileId: { $in: profileIds } } },
+    {
+      $group: {
+        _id: null,
+        totalSubmissions: { $sum: 1 },
+        completed: { $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] } },
+        pending: { $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] } },
+        reviewed: { $sum: { $cond: [{ $eq: ["$status", "Reviewed"] }, 1, 0] } },
+        resubmitted: { $sum: { $cond: [{ $eq: ["$status", "Resubmitted"] }, 1, 0] } },
+        late: { $sum: { $cond: [{ $eq: ["$status", "Late submission"] }, 1, 0] } },
+      },
+    },
+  ]);
+
+  return stats[0] || {};
+};
+
+const getTasksDueDateBucketsService = async (studentProfileId) => {
   const now = new Date();
   const next3Days = new Date();
   next3Days.setDate(now.getDate() + 3);
 
   return await Task.aggregate([
-    { $match: { studentId: new mongoose.Types.ObjectId(studentId) } },
+    { $match: { studentProfileId: new mongoose.Types.ObjectId(studentProfileId) } },
     {
       $addFields: {
         category: {
@@ -220,6 +331,9 @@ export {
   getSubmissionByIdService,
   getSubmissionsByTaskIdService,
   getSubmissionsByStudentIdService,
+  getAllMySubmissionsService,
+  getMySubmissionService,
+  getMySubmissionStatsService,
   updateSubmissionByIdService,
   updateSubmissionStatusService,
   deleteSubmissionByIdService,
