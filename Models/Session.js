@@ -67,13 +67,11 @@ sessionSchema.index({ instructorId: 1 });
 // sessionSchema.index({ title: 1 }, { unique: true });
 sessionSchema.index({ date: 1 });
 
-sessionSchema.pre("save", async function (next) {
+sessionSchema.pre("save", function () {
   const now = new Date();
   if (this.date < now) {
     throw new AppErrorHelper("Session Date Must be in the future", 400);
   }
-
-  next();
 });
 
 const Session = mongoose.model("Session", sessionSchema);
