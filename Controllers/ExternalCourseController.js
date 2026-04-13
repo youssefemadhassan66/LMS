@@ -26,7 +26,7 @@ const CreateExternalCourseController = CatchAsync(async (req, res, next) => {
   });
 });
 
-export const getMyExternalCoursesController = CatchAsync(async (req, res) => {
+const getMyExternalCoursesController = CatchAsync(async (req, res) => {
   const user = req.user;
 
   const courses = await getMyExternalCourseService(user, req.query);

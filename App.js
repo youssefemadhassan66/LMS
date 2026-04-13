@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import cookieParser from "cookie-parser";
 import { fileURLToPath } from "url";
 import helmet from "helmet";
@@ -22,6 +23,7 @@ import SessionRouter from "./Routes/SessionRouter.js";
 import TaskRouter from "./Routes/TaskRouter.js";
 import SubmissionRouter from "./Routes/SubmissionRouter.js";
 import SessionReviewRouter from "./Routes/SessionReviewRouter.js";
+import ExternalCourseRouter from "./Routes/ExternalCourseRouter.js";
 import externalHWRouter from "./Routes/ExternalCourseHwRouter.js";
 
 const app = express();
@@ -50,16 +52,19 @@ app.use(
 );
 
 // ─── 2. CORS Configuration ──────────────────────────────────────────────────────
-// app.use(
-//   cors({
-//     origin: process.env.CLIENT_URL || "http://localhost:5173",
-//     credentials: true,
-//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-//     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-//     exposedHeaders: ["Content-Length", "X-Total-Count"],
-//     maxAge: 86400, // 24 hours
-//   })
-// );
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",")
+      : ["http://localhost:5173", "http://127.0.0.1:5173"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Content-Length", "X-Total-Count"],
+    maxAge: 86400, // 24 hours
+    optionsSuccessStatus: 200,
+  })
+);
 
 // ─── 3. General API Rate Limiter ───────────────────────────────────────────────
 const apiLimiter = rateLimit({
@@ -98,11 +103,30 @@ app.use("/api/v1/auth/login", authLimiter);
 app.use("/api/v1/auth/signup", authLimiter);
 
 // ─── 5. Development Logging ───────────────────────────────────────────────────
+// Ensure logs directory exists
+if (!fs.existsSync("logs")) {
+  fs.mkdirSync("logs", { recursive: true });
+}
+
+// Create write streams for different log files
+const accessLogStream = fs.createWriteStream(path.join("logs", "access.log"), {
+  flags: "a",
+});
+
+const authLogStream = fs.createWriteStream(path.join("logs", "auth.log"), {
+  flags: "a",
+});
+
+// Log all requests to access.log
+app.use(morgan("combined", { stream: accessLogStream }));
+
+// Log auth requests to separate auth.log
+app.use("/api/v1/auth/login", morgan("combined", { stream: authLogStream }));
+app.use("/api/v1/auth/signup", morgan("combined", { stream: authLogStream }));
+
+// Console logging for development
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
-} else if (process.env.NODE_ENV === "production") {
-  // Production access logging
-  app.use(morgan("combined"));
 }
 
 // ─── 6. Body Parsers ───────────────────────────────────────────────────────────
@@ -201,6 +225,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// ─── 12. Health Check ──────────────────────────────────────────────────────────
+app.get("/api/v1/health", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "Server is healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // ─── 13. Routes ────────────────────────────────────────────────────────────────
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
@@ -209,6 +243,7 @@ app.use("/api/v1/session", SessionRouter);
 app.use("/api/v1/task", TaskRouter);
 app.use("/api/v1/submission", SubmissionRouter);
 app.use("/api/v1/sessionReview", SessionReviewRouter);
+app.use("/api/v1/external-course", ExternalCourseRouter);
 app.use("/api/v1/external-hw", externalHWRouter);
 
 // ─── 14. 404 Handler ────────────────────────────────────────────────────────────
