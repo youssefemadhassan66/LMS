@@ -38,7 +38,7 @@ const getMyExternalCoursesController = CatchAsync(async (req, res) => {
   });
 });
 
-export const getMyExternalCourseByIdController = CatchAsync(async (req, res, next) => {
+const getMyExternalCourseByIdController = CatchAsync(async (req, res, next) => {
   const course = await getMyExternalCourseByIdService(req.user, req.params.id);
 
   res.status(200).json({
