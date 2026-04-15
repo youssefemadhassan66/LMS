@@ -29,3 +29,5 @@ router.get("/:id/student", getExternalCoursesByStudentController);
 router.get("/:id", getExternalCourseByIdController);
 router.patch("/:id", updateExternalCourseController);
 router.delete("/:id", deleteExternalCourseController);
+
+export default router 
