@@ -19,7 +19,7 @@ router.use(protectRoute);
 
 
 router.get("/my", getMyExternalHWController);
-
+router.get("/my/:id", getMyExternalHWByIdController);
 
 router.get("/course/:courseId", getExternalHWByCourseController);
 

@@ -216,7 +216,7 @@ const getAllMySubmissionsService = async (userData, queryString = {}) => {
   } else if (userData.role === "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not allowed", 403);
+      return [];
     }
     profileIds = childrenProfiles.map((profile) => profile._id);
   } else {
@@ -244,7 +244,7 @@ const getMySubmissionService = async (userData, submissionId) => {
   } else if (userData.role === "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not allowed", 403);
+      return null;
     }
     profileIds = childrenProfiles.map((profile) => profile._id);
   } else {
@@ -270,7 +270,7 @@ const getMySubmissionStatsService = async (userData) => {
   } else if (userData.role === "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not allowed", 403);
+      return {};
     }
     profileIds = childrenProfiles.map((profile) => profile._id);
   } else {

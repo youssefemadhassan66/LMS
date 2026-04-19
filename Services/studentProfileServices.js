@@ -86,7 +86,7 @@ const getMyStudentProfileService = async (user) => {
     const profiles = await StudentProfile.find({ parents: user._id });
 
     if (profiles.length === 0) {
-      throw new AppErrorHelper("No children found!", 404);
+      return [];
     }
 
     return profiles;
