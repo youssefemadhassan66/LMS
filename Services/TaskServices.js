@@ -85,7 +85,7 @@ const getAllMyTasksService = async (userData, queryString) => {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id });
 
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not Allowed", 403);
+      return [];
     }
     const ProfilesIDs = childrenProfiles.map((profile) => profile._id);
 
@@ -111,7 +111,7 @@ const getMyTaskByIdService = async (userData, taskId) => {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id });
 
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not Allowed", 403);
+      return null;
     }
     const ProfilesIDs = childrenProfiles.map((profile) => profile._id);
 
@@ -245,7 +245,13 @@ const getMyTasksStatsService = async (userData) => {
   } else if (userData.role === "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id });
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not allowed", 403);
+      return {
+        totalTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        canceledTasks: 0,
+        completionRate: 0,
+      };
     }
     studentProfileIds = childrenProfiles.map((profile) => profile._id);
   } else {

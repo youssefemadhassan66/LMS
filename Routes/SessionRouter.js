@@ -17,9 +17,9 @@ const router = express.Router();
 
 router.use(protectionController);
 
-router.get("/me/:id",restrictedToController("student" , "parent",getMySessionByIdController));
+router.get("/me/:id", restrictedToController("student" , "parent"), getMySessionByIdController);
 
-router.get("/me/",restrictedToController("student" , "parent",getMyAllSessionController));
+router.get("/me/", restrictedToController("student" , "parent"), getMyAllSessionController);
 
 
 router.use(restrictedToController("admin", "instructor"));

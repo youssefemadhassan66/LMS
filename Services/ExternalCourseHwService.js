@@ -40,7 +40,7 @@ const getMyExternalHWService = async (user, queryString = {}) => {
 
     mongooseQuery = ExternalHW.find({ externalCourse: { $in: courseIds } });
   } else if (user.role === "parent") {
-    const childrenProfiles = await StudentProfile.find({ parents: new mongoose.Types.ObjectId(user._id) }, { _id: 1 });
+    const childrenProfiles = await StudentProfile.find({ parents: user._id }, { _id: 1 });
 
     if (!childrenProfiles.length) {
       return [];

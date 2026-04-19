@@ -76,7 +76,7 @@ const getMyExternalCourseService = async (user, queryString) => {
     }
     mongooseQuery = ExternalCourse.find({ studentProfileId: studentProfile._id }).populate({ path: "studentProfileId", select: "user grade", populate: { path: "user", select: "FullName UserName" } });
   } else if (user.role === "parent") {
-    const childrenProfiles = await StudentProfile.find({ parents: new mongoose.Types.ObjectId(user._id) }, { _id: 1 });
+    const childrenProfiles = await StudentProfile.find({ parents: user._id }, { _id: 1 });
 
     if (!childrenProfiles.length) {
       return [];

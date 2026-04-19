@@ -129,7 +129,7 @@ const getAllMySessionReviewsService = async (userData, queryString = {}) => {
   } else if (userData.role === "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not allowed", 403);
+      return [];
     }
     profileIds = childrenProfiles.map((profile) => profile._id);
   } else {
@@ -152,7 +152,7 @@ const getMySessionReviewService = async (userData, reviewId) => {
   } else if (userData.role === "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not allowed", 403);
+      return null;
     }
     profileIds = childrenProfiles.map((profile) => profile._id);
   } else {
@@ -174,7 +174,14 @@ const getMySessionReviewStatsService = async (userData) => {
   } else if (userData.role === "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
     if (!childrenProfiles || childrenProfiles.length === 0) {
-      throw new AppErrorHelper("Not allowed", 403);
+      return {
+        avgOverall: 0,
+        avgBehavior: 0,
+        avgUnderstanding: 0,
+        avgParticipation: 0,
+        avgCoding: 0,
+        Count: 0,
+      };
     }
     profileIds = childrenProfiles.map((profile) => profile._id);
   } else {
