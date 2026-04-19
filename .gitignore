@@ -1,5 +1,46 @@
 /node_modules
+
+# Environment variables
 .env
+.Env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.example
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Dev data
 /dev-data
 /Entity_Map
 /Notes
+
+# Uploads
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+
+#files 
+/additional-features
+
+#kilo AI
+.kilo
+#Scripts
+
+/Scripts
+.PRESENTATION.md
+/.kilo
+/.vscode
+.ecosystem.config.js

@@ -1,26 +1,48 @@
 import mongoose from "mongoose";
-import validator from "validator"
+import validator from "validator";
 
-const externalCourseSchema = new mongoose.Schema({
-    teacher:{
-        type:String
+const externalCourseSchema = new mongoose.Schema(
+  {
+    teacher: {
+      type: String,
     },
-    Subject:{
-        type:String,
-        required:true
+    subject: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 3,
     },
-    CreatedBy : {
-        type:mongoose.Schema.ObjectId,
-        ref:"User",
+    createdBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: "User",
     },
-    student:{
-        type:mongoose.Schema.ObjectId,
-        ref:"User",
+    studentProfileId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "StudentProfile",
+      required: true,
     },
-    color: { type: String, default: '#6366f1' }
+    color: { type: String },
+  },
+  { timestamps: true },
+);
 
-},{timestamps:true})
+externalCourseSchema.index({ studentProfileId: 1 });
+externalCourseSchema.index({ createdBy: 1 });
 
-const ExternalCourse = new mongoose.model("ExternalCourse",externalCourseSchema);
+externalCourseSchema.pre("save", async function () {
+  if (!this.color) {
+    const randomColor =
+      "#" +
+      Math.floor(Math.random() * 16777215)
+        .toString(16)
+        .padStart(6, "0");
 
-export default ExternalCourse
+    this.color = randomColor;
+  }
+
+  return;
+});
+
+const ExternalCourse = mongoose.model("ExternalCourse", externalCourseSchema);
+
+export default ExternalCourse;

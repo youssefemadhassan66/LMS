@@ -4,41 +4,45 @@ import { protectionController, restrictedToController } from "../Controllers/Aut
 import {
   createTaskController,
   getAllTasksController,
+  getAllMyTasksController,
   getTaskByIdController,
   getTasksBySessionIdController,
   getTasksByStudentIdController,
   getTasksStatsByStudentIdController,
+  getMyTasksStatsController,
+  getMyTaskByIdController,
   updateTaskByIdController,
   deleteTaskByIdController,
-  updateTaskStatusController
+  updateTaskStatusController,
 } from "../Controllers/TaskController.js";
 
 const router = express.Router();
 
 router.use(protectionController);
 
+router.get("/me", restrictedToController("student","parent"), getAllMyTasksController);
+router.get("/me/:id", restrictedToController("student","parent"), getMyTaskByIdController);
+router.get("/me/stats", restrictedToController("student","parent"), getMyTasksStatsController);
 
-router.get("/", getAllTasksController);
+router.use(restrictedToController("admin", "instructor"));
+
+router.get("/student/:id/stats", getTasksStatsByStudentIdController);
+
+router.get("/student/:id", getTasksByStudentIdController);
 
 router.get("/session/:id", getTasksBySessionIdController);
-router.get("/student/:id", getTasksByStudentIdController);
-router.get("/student/:id/stats", getTasksStatsByStudentIdController);
 
 router.get("/:id", getTaskByIdController);
 
-// Restricted routes (only instructor/admin)
-router.use(restrictedToController("admin", "instructor"));
+router.get("/", getAllTasksController);
 
-// create task
 router.post("/", createTaskController);
 
-// update task
 router.patch("/:id", updateTaskByIdController);
 
-// update ONLY status 
 router.patch("/:id/status", updateTaskStatusController);
 
-// delete task
+
 router.delete("/:id", deleteTaskByIdController);
 
 export default router;

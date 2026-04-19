@@ -1,29 +1,19 @@
 import express from "express";
-import {
-    getAllUsersController,
-    getUserController,
-    UpdateUserController,
-    DeleteUserController,
-    createUserController
-} 
-from '../Controllers/UserController.js'
-import { protectionController,restrictedToController } from "../Controllers/AuthController.js";
+import { getAllUsersController, getUserController, UpdateUserController, DeleteUserController, createUserController } from "../Controllers/UserController.js";
+import { protectionController, restrictedToController } from "../Controllers/AuthController.js";
 
-const router = express.Router()
-
+const router = express.Router();
 
 router.use(protectionController);
 router.use(restrictedToController("admin"));
 
-router.get("/",getAllUsersController);
-router.post("/",createUserController);
 
-router.route("/:id")
-.get(getUserController)
-.patch(UpdateUserController)
-.delete(DeleteUserController);
+router.get("/", getAllUsersController);
 
 
+router.post("/", createUserController);
 
 
-export default router
+router.route("/:id").get(getUserController).patch(UpdateUserController).delete(DeleteUserController);
+
+export default router;

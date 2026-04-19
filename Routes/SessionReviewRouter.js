@@ -5,12 +5,15 @@ import { protectionController, restrictedToController } from "../Controllers/Aut
 import {
   createSessionReviewController,
   getAllSessionReviewsController,
+  getAllMySessionReviewsController,
+  getMySessionReviewController,
+  getMySessionReviewStatsController,
   getSessionReviewsByStudentController,
   getSessionReviewsByInstructorController,
   getSessionReviewsBySessionController,
   updateSessionReviewByIdController,
   deleteSessionReviewByIdController,
-  getStudentReviewStatsController
+  getStudentReviewStatsController,
 } from "../Controllers/SessionReviewController.js";
 
 const router = express.Router();
@@ -18,30 +21,24 @@ const router = express.Router();
 router.use(protectionController);
 
 
-// Get all reviews
 router.get("/", getAllSessionReviewsController);
 
-// Get reviews by session
 router.get("/session/:id", getSessionReviewsBySessionController);
 
-// Get reviews by student
-router.get("/student/:id", getSessionReviewsByStudentController);
+router.get("/me", getAllMySessionReviewsController);
+router.get("/me/stats", getMySessionReviewStatsController);
+router.get("/me/:id", getMySessionReviewController);
 
-// Get student stats 
-router.get("/student/:id/stats", getStudentReviewStatsController);
-
-// Get reviews by instructor
-router.get("/instructor/:id", getSessionReviewsByInstructorController);
-
-//  Restricted routes (only instructor/admin can create/update/delete)
 router.use(restrictedToController("admin", "instructor"));
 
-// Create review
+router.get("/student/:id", getSessionReviewsByStudentController);
+router.get("/student/:id/stats", getStudentReviewStatsController);
+router.get("/instructor/:id", getSessionReviewsByInstructorController);
+
+
 router.post("/", createSessionReviewController);
 
-// Update & delete
-router.route("/:id")
-  .patch(updateSessionReviewByIdController)
-  .delete(deleteSessionReviewByIdController);
+
+router.route("/:id").patch(updateSessionReviewByIdController).delete(deleteSessionReviewByIdController);
 
 export default router;

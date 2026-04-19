@@ -1,121 +1,96 @@
-import SessionReview from "../Models/SessionReview";
-import User from "../Models/User";
-import Session from "../Models/Session";
-import AppErrorHelper from "../Utilities/AppErrorHelper";
-import ApiFeatures from "../Utilities/ApiFeatures";
+import SessionReview from "../Models/SessionReview.js";
+import User from "../Models/User.js";
+import Session from "../Models/Session.js";
+import StudentProfile from "../Models/studentProfile.js";
+import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import ApiFeatures from "../Utilities/ApiFeatures.js";
 import mongoose from "mongoose";
-
 
 const createSessionReviewService = async (data) => {
   if (!data) {
     throw new AppErrorHelper("Data is missing!", 400);
   }
 
-  const {
-    sessionId,
-    studentId,
-    instructorId,
-    notes,
-    Behavior,
-    underStanding,
-    participation,
-    coding
-  } = data;
+  const { sessionId, studentProfileId, studentId, instructorId, notes, Behavior, underStanding, participation, coding } = data;
 
-  // 1. Check session exists
   const session = await Session.findById(sessionId);
   if (!session) {
     throw new AppErrorHelper("Session not found!", 404);
   }
 
-  
-  const student = await User.findById(studentId);
   const instructor = await User.findById(instructorId);
-
-  if (!student || !instructor) {
-    throw new AppErrorHelper("User not found!", 404);
+  if (!instructor) {
+    throw new AppErrorHelper("Instructor not found!", 404);
   }
 
-
-  if (student.role !== "student" || instructor.role !== "instructor") {
+  if (instructor.role !== "instructor") {
     throw new AppErrorHelper("Wrong assignment of roles!", 400);
   }
 
+  let resolvedStudentProfileId = studentProfileId;
+  if (!resolvedStudentProfileId && studentId) {
+    const studentProfile = await StudentProfile.findOne({ user: studentId });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Student profile not found!", 404);
+    }
+    resolvedStudentProfileId = studentProfile._id;
+  }
 
-  if (
-    session.studentId.toString() !== studentId ||
-    session.instructorId.toString() !== instructorId
-  ) {
-    throw new AppErrorHelper(
-      "This session does not belong to this student/instructor",
-      400
-    );
+  if (!resolvedStudentProfileId) {
+    throw new AppErrorHelper("Student profile id is required!", 400);
+  }
+
+  const studentProfile = await StudentProfile.findById(resolvedStudentProfileId);
+  if (!studentProfile) {
+    throw new AppErrorHelper("Student profile not found!", 404);
+  }
+
+  if (!session.studentProfileId || session.studentProfileId.toString() !== resolvedStudentProfileId.toString()) {
+    throw new AppErrorHelper("This session does not belong to this student profile", 400);
   }
 
   if (!session.StudentAttended) {
-    throw new AppErrorHelper(
-      "Cannot review a session that student did not attend",
-      400
-    );
+    throw new AppErrorHelper("Cannot review a session that student did not attend", 400);
   }
 
-  
   const review = await SessionReview.create({
     session: sessionId,
-    Student: studentId,
+    studentProfileId: resolvedStudentProfileId,
     Instructor: instructorId,
     notes,
     Behavior,
     underStanding,
     participation,
-    coding
+    coding,
   });
 
   return review;
 };
 
 const getAllSessionReviewsService = async (queryString) => {
-  const features = new ApiFeatures(
-    SessionReview.find({}),
-    queryString
-  ).filter().sort().fields().pagination();
+  const features = new ApiFeatures(SessionReview.find({}), queryString).filter().sort().fields().pagination();
 
   const reviews = await features.mongooseQuery;
   return reviews;
 };
 
-
-const getSessionReviewsByStudentService = async (studentId, queryString = {}) => {
-  const features = new ApiFeatures(
-    SessionReview.find({ Student: studentId }),
-    queryString
-  ).sort().fields().pagination();
+const getSessionReviewsByStudentService = async (studentProfileId, queryString = {}) => {
+  const features = new ApiFeatures(SessionReview.find({ studentProfileId: studentProfileId }), queryString).sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
-
-
 
 const getSessionReviewsByInstructorService = async (instructorId, queryString = {}) => {
-  const features = new ApiFeatures(
-    SessionReview.find({ Instructor: instructorId }),
-    queryString
-  ).sort().fields().pagination();
+  const features = new ApiFeatures(SessionReview.find({ Instructor: instructorId }), queryString).sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
-
 
 const getSessionReviewsBySessionService = async (sessionId, queryString = {}) => {
-  const features = new ApiFeatures(
-    SessionReview.find({ session: sessionId }),
-    queryString
-  ).sort().fields().pagination();
+  const features = new ApiFeatures(SessionReview.find({ session: sessionId }), queryString).sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
-
-
 
 const updateSessionReviewByIdService = async (reviewId, data) => {
   const options = {
@@ -123,11 +98,7 @@ const updateSessionReviewByIdService = async (reviewId, data) => {
     runValidators: true,
   };
 
-  const review = await SessionReview.findByIdAndUpdate(
-    reviewId,
-    data,
-    options
-  );
+  const review = await SessionReview.findByIdAndUpdate(reviewId, data, options);
 
   if (!review) {
     throw new AppErrorHelper("Review not found!", 404);
@@ -135,8 +106,6 @@ const updateSessionReviewByIdService = async (reviewId, data) => {
 
   return review;
 };
-
-
 
 const deleteSessionReviewByIdService = async (reviewId) => {
   const review = await SessionReview.findByIdAndDelete(reviewId);
@@ -148,28 +117,124 @@ const deleteSessionReviewByIdService = async (reviewId) => {
   return review;
 };
 
+const getAllMySessionReviewsService = async (userData, queryString = {}) => {
+  let profileIds;
 
-const getStudentReviewStatsService = async (studentId) => {
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = [studentProfile._id];
+  } else if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      return [];
+    }
+    profileIds = childrenProfiles.map((profile) => profile._id);
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  const features = new ApiFeatures(SessionReview.find({ studentProfileId: { $in: profileIds } }), queryString).sort().fields().pagination();
+  return await features.mongooseQuery;
+};
+
+const getMySessionReviewService = async (userData, reviewId) => {
+  let profileIds;
+
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = [studentProfile._id];
+  } else if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      return null;
+    }
+    profileIds = childrenProfiles.map((profile) => profile._id);
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
+  return await SessionReview.findOne({ _id: reviewId, studentProfileId: { $in: profileIds } });
+};
+
+const getMySessionReviewStatsService = async (userData) => {
+  let profileIds;
+
+  if (userData.role === "student") {
+    const studentProfile = await StudentProfile.findOne({ user: userData._id });
+    if (!studentProfile) {
+      throw new AppErrorHelper("Not allowed", 403);
+    }
+    profileIds = [studentProfile._id];
+  } else if (userData.role === "parent") {
+    const childrenProfiles = await StudentProfile.find({ parents: userData._id }, { _id: 1 });
+    if (!childrenProfiles || childrenProfiles.length === 0) {
+      return {
+        avgOverall: 0,
+        avgBehavior: 0,
+        avgUnderstanding: 0,
+        avgParticipation: 0,
+        avgCoding: 0,
+        Count: 0,
+      };
+    }
+    profileIds = childrenProfiles.map((profile) => profile._id);
+  } else {
+    throw new AppErrorHelper("Not allowed", 403);
+  }
+
   const stats = await SessionReview.aggregate([
     {
-      $match:{Student:new mongoose.Types.ObjectId(studentId)}
+      $match: { studentProfileId: { $in: profileIds } },
     },
     {
-      $group:{
-        _id : null,
-        avgOverAll:{$avg:"overAllRating"},
-        avgBehavior:{$avg:"Behavior"},
-        avgUnderstanding:{$avg:"underStanding"},
+      $group: {
+        _id: null,
+        avgOverall: { $avg: "$overAllRating" },
+        avgBehavior: { $avg: "$Behavior" },
+        avgUnderstanding: { $avg: "$underStanding" },
         avgParticipation: { $avg: "$participation" },
         avgCoding: { $avg: "$coding" },
-        Count : {$sum: 1}
-      }
-    }
+        Count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return stats[0] || {
+    avgOverall: 0,
+    avgBehavior: 0,
+    avgUnderstanding: 0,
+    avgParticipation: 0,
+    avgCoding: 0,
+    Count: 0,
+  };
+};
+
+const getStudentReviewStatsService = async (studentProfileId) => {
+  const stats = await SessionReview.aggregate([
+    {
+      $match: { studentProfileId: new mongoose.Types.ObjectId(studentProfileId) },
+    },
+    {
+      $group: {
+        _id: null,
+        avgOverall: { $avg: "$overAllRating" },
+        avgBehavior: { $avg: "$Behavior" },
+        avgUnderstanding: { $avg: "$underStanding" },
+        avgParticipation: { $avg: "$participation" },
+        avgCoding: { $avg: "$coding" },
+        Count: { $sum: 1 },
+      },
+    },
   ]);
 
   return stats[0] || {}
 };
-
 
 export {
   createSessionReviewService,
@@ -177,28 +242,29 @@ export {
   getSessionReviewsByStudentService,
   getSessionReviewsByInstructorService,
   getSessionReviewsBySessionService,
+  getAllMySessionReviewsService,
+  getMySessionReviewService,
+  getMySessionReviewStatsService,
   updateSessionReviewByIdService,
   deleteSessionReviewByIdService,
-  getStudentReviewStatsService
+  getStudentReviewStatsService,
 };
 
+// const stats = await SessionReview.aggregate([
+//   {
+//     $match: { Student: mongoose.Types.ObjectId(studentId) }
+//   },
+//   {
+//     $group: {
+//       _id: "$Student",
+//       avgOverall: { $avg: "$overAllRating" },
+//       avgBehavior: { $avg: "$Behavior" },
+//       avgUnderstanding: { $avg: "$underStanding" },
+//       avgParticipation: { $avg: "$participation" },
+//       avgCoding: { $avg: "$coding" },
+//       totalSessions: { $sum: 1 }
+//     }
+//   }
+// ]);
 
-
-  // const stats = await SessionReview.aggregate([
-  //   {
-  //     $match: { Student: mongoose.Types.ObjectId(studentId) }
-  //   },
-  //   {
-  //     $group: {
-  //       _id: "$Student",
-  //       avgOverall: { $avg: "$overAllRating" },
-  //       avgBehavior: { $avg: "$Behavior" },
-  //       avgUnderstanding: { $avg: "$underStanding" },
-  //       avgParticipation: { $avg: "$participation" },
-  //       avgCoding: { $avg: "$coding" },
-  //       totalSessions: { $sum: 1 }
-  //     }
-  //   }
-  // ]);
-
-  // return stats[0] || {};
+// return stats[0] || {};

@@ -1,121 +1,119 @@
-import mongoose, { model } from "mongoose";
-import validator from "validator";
-import Task from "./Task";
+import mongoose from "mongoose";
 
-const SubmissionSchema = mongoose.Schema({
-    task:{
-        type:mongoose.Schema.ObjectId,
-        ref:"Task",
+const SubmissionSchema = mongoose.Schema(
+  {
+    task: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Task",
     },
-    student:{
-        type:mongoose.Schema.ObjectId,
-        ref:"User"
+    studentProfileId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "StudentProfile",
+      required: true,
     },
-    SubmissionDate:{
-        type:Date,
-        default:Date.now
+    SubmissionDate: {
+      type: Date,
     },
-    Task_links:[{
-        name:{type:String, required:true},
-        url:{type:String, required:true}
-    }],
+    Task_links: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+      },
+    ],
+    note: {
+      type: String,
+    },
+    status: {
+      type: String,
+      enum: ["Completed", "Pending", "Reviewed", "Resubmitted", "Late submission"],
+      default: "Pending",
+    },
+    review: {
+      score: {
+        type: Number,
+        min: 0,
+        max: 10,
+      },
+      comment: { type: String },
+      reviewAt: { type: Date },
+      rating: {
+        type: String,
+        enum: ["Full mark", "Excellent", "Very Good", "Good", "Fair"],
+      },
+    },
+  },
+  { timestamps: true },
+);
 
-    note:{
-        type:String
-    },
-    status:{
-        type:String,
-        enum:["Completed","Pending","Reviewed","Resubmitted","Late submission"],
-        default:"Pending"
-    },
-    review:{
-        score:{
-            type:Number,
-            min:0,
-            max:10
-        },
-        comment:{type:String},
-        reviewAt:{type:Date},
-        rating:{
-            type:String,
-            enum:["Full mark" ,"Excellent","Very Good", "Good" , "Fair"]
-        }
+SubmissionSchema.index({ task: 1, studentProfileId: 1 });
+SubmissionSchema.index({ studentProfileId: 1 });
+SubmissionSchema.index({ status: 1 });
+
+// ─── Pre-find ─────────────────────────────────────────────────────────────────
+SubmissionSchema.pre(/^find/, async function () {
+  this.populate([
+    { path: "task", select: "title dueDate" },
+    { path: "studentProfileId", select: "user grade" },
+  ]);
+});
+
+// ─── Pre-save ─────────────────────────────────────────────────────────────────
+SubmissionSchema.pre("save", async function () {
+  const task = await mongoose.model("Task").findById(this.task);
+
+  if (!task) return;
+
+  if (this.status === "Completed") {
+    if (!this.Task_links || this.Task_links.length === 0) {
+      throw new Error("At least one submission link is required when marking as Completed");
     }
 
-},{timestamps:true});
+    this.SubmissionDate = new Date();
+    this.note = "Great job!";
 
-
-// Pre hooks 
-SubmissionSchema.pre(/^find/,function (next) {
-    this.populate('Task','title dueDate');
-    next();
-})
-
-
-SubmissionSchema.pre('save',async function (next) {
-
-    const task = await mongoose.model('Task').findById(this.task)
-    
-    
-    if (this.status === "Completed" && (!this.Task_links || this.Task_links.length === 0)) {
-        const error = new Error("At least one submission link is required when marking as Completed");
-        return next(error);
+    if (this.SubmissionDate > task.dueDate) {
+      this.status = "Late submission";
+      this.note = "Late submission";
     }
-    
-    if(task){
-       
-        if (this.status === "Completed"){
-            this.SubmissionDate = new Date();
-            this.note = "Great job" 
-            if(this.SubmissionDate > task.dueDate ){
-            this.status = 'Late submission'
-            this.note = "Late submission"
-        }
-        }
-        else if (this.status === "Pending"){
-            this.SubmissionDate = undefined;
-            this.note = "Waiting for submission !"
-        }
+  } else if (this.status === "Pending") {
+    this.SubmissionDate = undefined;
+    this.note = "Waiting for Submission!";
+  } else if (this.status === "Resubmitted") {
+    this.note = "Please review the task and resubmit!";
+  }
 
-        else if (this.status === "Resubmitted"){
-            this.SubmissionDate = undefined;
-            this.note = "Please review the task and submit again !"
-        }
-       
-        // Only set rating if score exists
-        if (this.review.score !== undefined && this.review.score !== null) {
-            if (this.review.score >= 0 &&  this.review.score < 5){
-                this.review.rating = "Fair"
-            }
-            if(this.review.score >= 5 &&  this.review.score < 7){
-                this.review.rating = "Good"
-            }
-            if(this.review.score >= 7 &&  this.review.score <= 9){
-                this.review.rating = "Excellent"
-            }
-            if(this.review.score > 9){
-                this.review.rating = "Full mark"
-            }
-        }
-        
+  if (this.review && this.review.score !== undefined && this.review.score !== null) {
+    const score = this.review.score;
+
+    if (score < 5) {
+      this.review.rating = "Fair";
+    } else if (score < 7) {
+      this.review.rating = "Good";
+    } else if (score < 9) {
+      this.review.rating = "Very Good";
+    } else if (score < 10) {
+      this.review.rating = "Excellent";
+    } else {
+      // score === 10
+      this.review.rating = "Full mark";
     }
-    next()
-})
+  }
+});
 
-//Methods  
+// ─── Methods ──────────────────────────────────────────────────────────────────
 SubmissionSchema.methods.markComplete = async function () {
-    this.status = 'completed'
-    this.SubmissionDate = new Date() 
-    const task = await mongoose.model("Task").findById(this.task);
-        if(this.SubmissionDate > task.dueDate ){
-            this.status = 'Late submission'
-            this.note = "Late submission"
-        }
-    return this.save()
-}
+  this.status = "Completed";
+  this.SubmissionDate = new Date();
 
+  const task = await mongoose.model("Task").findById(this.task);
+  if (task && this.SubmissionDate > task.dueDate) {
+    this.status = "Late submission";
+    this.note = "Late submission";
+  }
 
+  return this.save();
+};
 
-const Submission = mongoose.model("Submission",SubmissionSchema);
+const Submission = mongoose.model("Submission", SubmissionSchema);
 
-export default Submission 
+export default Submission;
