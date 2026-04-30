@@ -48,11 +48,12 @@ router.get("/:id", getSubmissionByIdController);
 
 router.patch("/:id/submit", submitTaskController);
 
+router.post("/", createSubmissionController);
+
 // ─── Restricted (instructor / admin only) ────────────────────────────────────
 
 router.use(restrictedToController("admin", "instructor"));
 
-router.post("/", createSubmissionController);
 
 
 router.patch("/:id", updateSubmissionByIdController);

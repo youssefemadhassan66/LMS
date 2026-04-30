@@ -21,8 +21,8 @@ const router = express.Router();
 router.use(protectionController);
 
 router.get("/me", restrictedToController("student","parent"), getAllMyTasksController);
-router.get("/me/:id", restrictedToController("student","parent"), getMyTaskByIdController);
 router.get("/me/stats", restrictedToController("student","parent"), getMyTasksStatsController);
+router.get("/me/:id", restrictedToController("student","parent"), getMyTaskByIdController);
 
 router.use(restrictedToController("admin", "instructor"));
 

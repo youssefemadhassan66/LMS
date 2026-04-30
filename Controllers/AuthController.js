@@ -87,7 +87,10 @@ const RefreshController = CatchAsync(async (req, res, next) => {
 
   CreateAndSendTokens(req, res, accessToken, refreshToken);
 
-  res.status(200).json({ status: "success" });
+  res.status(200).json({ 
+    status: "success",    
+    data: { token: accessToken }
+  });
 });
 
 // ─── Protection Middleware ────────────────────────────────────────────────────

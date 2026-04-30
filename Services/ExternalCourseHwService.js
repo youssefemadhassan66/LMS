@@ -6,7 +6,7 @@ import ExternalHW from "../Models/ExternalHw.js";
 import mongoose from "mongoose";
 
 const getAllExternalHWService = async (queryString = {}) => {
-  const features = new ApiFeatures(ExternalHW.find({}), queryString) //
+  const features = new ApiFeatures(ExternalHW.find({}), queryString) 
     .filter()
     .fields()
     .sort()

@@ -60,6 +60,9 @@ const createSubmissionService = async (data) => {
     status: "Pending",
   });
 
+  // Auto-complete the task when a submission is created
+  await Task.findByIdAndUpdate(taskId, { status: "completed" });
+
   return submission;
 };
 

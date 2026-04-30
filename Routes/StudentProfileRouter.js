@@ -19,6 +19,7 @@ router.get("/me", restrictedToController("parent" ,"student") , getMyStudentProf
 
 router.get("/me/:id", restrictedToController("parent" ,"student") , getMyStudentProfileByIdController);
 
+router.get("/:id", validate(profileIdSchema, "params"), getStudentProfileController);
 
 router
   .route("/:id" , restrictedToController("parent" ,"student"))
@@ -30,12 +31,6 @@ router.use(restrictedToController("admin"))
 
 
 router.get("/all", getAllStudentProfileController);
-
-
-router.get("/:id", validate(profileIdSchema, "params"), getStudentProfileController);
-
-
-
 
  
 
