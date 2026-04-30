@@ -1,4 +1,4 @@
-import User from "../Models/User.js";
+import User from "../Models/user.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
 import StudentProfile from "../Models/studentProfile.js";
 

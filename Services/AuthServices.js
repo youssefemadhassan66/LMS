@@ -1,4 +1,4 @@
-import User from "../Models/User.js";
+import User from "../Models/user.js";
 import Token from "../Models/Token.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import { ComparePasswordHelper, hashPasswordHelper } from "../Utilities/HashHelper.js";

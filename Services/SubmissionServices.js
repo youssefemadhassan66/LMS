@@ -1,6 +1,6 @@
 import Submission from "../Models/Submission.js";
 import Task from "../Models/Task.js";
-import User from "../Models/User.js";
+import User from "../Models/user.js";
 import StudentProfile from "../Models/studentProfile.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
@@ -8,7 +8,13 @@ import mongoose from "mongoose";
 
 const VALID_STATUSES = ["Pending", "Completed", "Reviewed", "Resubmitted", "Late submission"];
 
-const createSubmissionService = async (data) => {
+const getDocumentId = (value) => {
+  if (!value) return null;
+  if (value._id) return value._id.toString();
+  return value.toString();
+};
+
+const createSubmissionService = async (data, userData) => {
   if (!data) {
     throw new AppErrorHelper("Data is missing!", 400);
   }
@@ -30,6 +36,21 @@ const createSubmissionService = async (data) => {
     resolvedStudentProfileId = studentProfile._id;
   }
 
+  if (userData?.role === "student") {
+    const ownProfile = await StudentProfile.findOne({ user: userData._id }, { _id: 1 });
+    if (!ownProfile) {
+      throw new AppErrorHelper("Student profile not found!", 404);
+    }
+
+    if (resolvedStudentProfileId && getDocumentId(resolvedStudentProfileId) !== ownProfile._id.toString()) {
+      throw new AppErrorHelper("You can only submit your own task!", 403);
+    }
+
+    resolvedStudentProfileId = ownProfile._id;
+  } else if (userData?.role === "parent") {
+    throw new AppErrorHelper("Parents can view homework, but students must submit it themselves.", 403);
+  }
+
   if (!resolvedStudentProfileId) {
     throw new AppErrorHelper("Student profile id is required!", 400);
   }
@@ -39,7 +60,10 @@ const createSubmissionService = async (data) => {
     throw new AppErrorHelper("Student profile not found!", 404);
   }
 
-  if (task.studentProfileId && task.studentProfileId.toString() !== resolvedStudentProfileId.toString()) {
+  const taskStudentProfileId = getDocumentId(task.studentProfileId);
+  const submissionStudentProfileId = getDocumentId(resolvedStudentProfileId);
+
+  if (taskStudentProfileId && taskStudentProfileId !== submissionStudentProfileId) {
     throw new AppErrorHelper("Task does not belong to this student profile!", 400);
   }
 

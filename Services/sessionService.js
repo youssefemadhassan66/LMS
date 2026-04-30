@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import Session from "../Models/Session.js";
-import User from "../Models/User.js";
+import User from "../Models/user.js";
 import StudentProfile from "../Models/studentProfile.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";

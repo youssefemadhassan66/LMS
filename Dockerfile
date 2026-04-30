@@ -1,5 +1,5 @@
-# Use Node.js 18 Alpine for smaller image
-FROM node:18-alpine AS base
+# Use Node.js 22 Alpine for packages that require Node >=20.19
+FROM node:22-alpine AS base
 
 # Set working directory
 WORKDIR /app
@@ -8,10 +8,10 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
@@ -34,7 +34,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/v1/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "const port = process.env.PORT || 3000; require('http').get(`http://localhost:${port}/api/v1/health`, (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Start the application
 CMD ["npm", "start"]

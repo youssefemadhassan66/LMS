@@ -1,5 +1,5 @@
 import SessionReview from "../Models/SessionReview.js";
-import User from "../Models/User.js";
+import User from "../Models/user.js";
 import Session from "../Models/Session.js";
 import StudentProfile from "../Models/studentProfile.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";

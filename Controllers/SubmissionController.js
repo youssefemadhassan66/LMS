@@ -24,7 +24,7 @@ import CatchAsync from "../Utilities/CatchAsync.js";
  * Body: { taskId, studentId, Task_links?, note? }
  */
 const createSubmissionController = CatchAsync(async (req, res, next) => {
-  const submission = await createSubmissionService(req.body);
+  const submission = await createSubmissionService(req.body, req.user);
 
   res.status(201).json({
     status: "success",

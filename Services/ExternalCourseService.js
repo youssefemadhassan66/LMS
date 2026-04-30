@@ -1,7 +1,7 @@
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
-import User from "../Models/User.js";
-import ExternalCourse from "../Models/ExternalCourse.js";
+import User from "../Models/user.js";
+import ExternalCourse from "../Models/externalCourse.js";
 import StudentProfile from "../Models/studentProfile.js";
 import mongoose from "mongoose";
 

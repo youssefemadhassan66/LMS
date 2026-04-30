@@ -6,7 +6,7 @@ import {
   getMyStudentProfileController,
   getMyStudentProfileByIdController,
   getAllStudentProfileController,
-} from "../Controllers/StudentProfileController.js";
+} from "../Controllers/StudentprofileController.js";
 import { protectionController, restrictedToController } from "../Controllers/AuthController.js";
 import { validate } from "../Middleware/validate.js";
 import { createStudentProfileSchema, updateStudentProfileSchema, profileIdSchema } from "../Validation/studentProfileValidation.js";

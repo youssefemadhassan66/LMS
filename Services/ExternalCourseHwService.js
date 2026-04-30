@@ -1,8 +1,8 @@
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
-import ExternalCourse from "../Models/ExternalCourse.js";
+import ExternalCourse from "../Models/externalCourse.js";
 import StudentProfile from "../Models/studentProfile.js";
-import ExternalHW from "../Models/ExternalHw.js";
+import ExternalHW from "../Models/externalHw.js";
 import mongoose from "mongoose";
 
 const getAllExternalHWService = async (queryString = {}) => {

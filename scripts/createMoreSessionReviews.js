@@ -1,7 +1,7 @@
 import "dotenv/config";
 import mongoose from "mongoose";
 import Session from "../Models/Session.js";
-import User from "../Models/User.js";
+import User from "../Models/user.js";
 import SessionReview from "../Models/SessionReview.js";
 
 const CONNECTION_STRING = process.env.CONNECTION_STRING;
