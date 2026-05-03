@@ -26,6 +26,7 @@ import SessionReviewRouter from "./Routes/SessionReviewRouter.js";
 import ExternalCourseRouter from "./Routes/ExternalCourseRouter.js";
 import externalHWRouter from "./Routes/ExternalCourseHwRouter.js";
 import ExamRouter from "./Routes/ExamRouter.js";
+import ProgressTrendsRouter from "./Routes/ProgressTrendsRouter.js";
 
 const app = express();
 
@@ -247,6 +248,7 @@ app.use("/api/v1/sessionReview", SessionReviewRouter);
 app.use("/api/v1/external-course", ExternalCourseRouter);
 app.use("/api/v1/external-hw", externalHWRouter);
 app.use("/api/v1/exam", ExamRouter);
+app.use("/api/v1/progress", ProgressTrendsRouter);
 
 // ─── 14. 404 Handler ────────────────────────────────────────────────────────────
 app.all(/.*/, (req, res, next) => {
