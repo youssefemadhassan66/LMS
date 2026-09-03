@@ -7,6 +7,7 @@ import { ComparePasswordHelper, hashPasswordHelper } from "../Utilities/HashHelp
 import { generateToken, verifyRefreshToken, verifyAccessToken, signImpersonationToken } from "../Utilities/JwtHelper.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../Utilities/EmailHelper.js";
 import auditLog from "../Utilities/AuditLogger.js";
+import ensureStudentProfile from "../Utilities/StudentProfileHelper.js";
 import { randomUUID } from "crypto";
 
 // Parse JWT_REFRESH_EXPIRES_IN with `ms` so the DB token's expiresAt matches
@@ -77,6 +78,13 @@ const SignUpService = async (userData, _origin) => {
     approvalStatus: "pending",
     emailVerified: true, // No email verification required for any role
   });
+
+  // Create the profile now rather than at approval. Sessions, exams, tasks and
+  // reviews all key on studentProfileId, so a student without one is invisible
+  // to instructors and admins no matter what its approval status says.
+  if (newUser.role === "student") {
+    await ensureStudentProfile(newUser._id);
+  }
 
   // New parent and student registrations need admin approval before login.
   newUser.password = undefined;

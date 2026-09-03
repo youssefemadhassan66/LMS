@@ -3,6 +3,7 @@ import Token from "../Models/Token.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
 import StudentProfile from "../Models/studentProfile.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
+import ensureStudentProfile from "../Utilities/StudentProfileHelper.js";
 
 // Admin only
 const getAllUsersService = async (query) => {
@@ -62,7 +63,7 @@ const SoftDeleteUserByIDService = async (id) => {
 const createUserService = async (data) => {
   const user = { ...data };
 
-  return await User.create({
+  const newUser = await User.create({
     FullName: user.FullName,
     UserName: user.UserName,
     Email: user.Email,
@@ -72,6 +73,13 @@ const createUserService = async (data) => {
     isActive: user.isActive,
     approvalStatus: "approved",
   });
+
+  // Same reason as signup: without a profile the student cannot be scheduled.
+  if (newUser.role === "student") {
+    await ensureStudentProfile(newUser._id);
+  }
+
+  return newUser;
 };
 
 const getPendingApprovalUsersService = async () =>
@@ -106,6 +114,12 @@ const reviewUserApprovalService = async ({ userId, approvalStatus, rejectionReas
 
   if (approvalStatus === "rejected") {
     await Token.deleteMany({ userId: user._id });
+  }
+
+  // Backstop for accounts that signed up before profiles were created at
+  // signup. Idempotent, so approving an already-provisioned student is a no-op.
+  if (approvalStatus === "approved" && user.role === "student") {
+    await ensureStudentProfile(user._id);
   }
 
   return user;
