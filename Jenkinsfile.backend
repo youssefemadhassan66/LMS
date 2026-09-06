@@ -36,7 +36,7 @@ pipeline {
                 }
             }
             steps {
-                isValidGitdir("${TEST_DIR}")
+                isValidGitDir("${TEST_DIR}")
             }
         }
 
