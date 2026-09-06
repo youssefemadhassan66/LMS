@@ -12,12 +12,11 @@ import {
   markExternalHwCompleteService,
 } from "../Services/ExternalCourseHwService.js";
 
-const getAllExternalHWController = CatchAsync(async (req, res, next) => {
-  const docs = await getAllExternalHWService(req.query);
-
-  if (!docs || docs.length === 0) {
-    return next(new AppErrorHelper("No homeworks found!", 404));
-  }
+const getAllExternalHWController = CatchAsync(async (req, res) => {
+  // An empty collection is a successful query, not a missing resource.
+  // Returning 404 here made the dashboard show an error on a page that
+  // simply had no homework in it yet.
+  const docs = (await getAllExternalHWService(req.query)) || [];
 
   res.status(200).json({
     status: "success",
@@ -56,12 +55,11 @@ const getMyExternalHWByIdController = CatchAsync(async (req, res, next) => {
   });
 });
 
-const getExternalHWByCourseController = CatchAsync(async (req, res, next) => {
-  const docs = await getExternalHWByCourseService(req.params.courseId, req.query);
-
-  if (!docs || docs.length === 0) {
-    return next(new AppErrorHelper("No homeworks found for this course!", 404));
-  }
+const getExternalHWByCourseController = CatchAsync(async (req, res) => {
+  // Same as above: a course that has not been given homework yet is an empty
+  // list, not a 404.
+  const docs =
+    (await getExternalHWByCourseService(req.params.courseId, req.query)) || [];
 
   res.status(200).json({
     status: "success",
