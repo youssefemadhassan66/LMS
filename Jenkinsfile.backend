@@ -50,7 +50,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'backend-env', variable: 'ENV_FILE')]) {
                     dir("${TEST_DIR}") {
-                        sh """
+                        sh '''
                             cp "$ENV_FILE" .env
                             echo "=== DIRECTORY ==="
                             pwd
@@ -72,7 +72,7 @@ pipeline {
                             
                             echo "=== RUNNING TEST ==="
                             npm test
-                        """
+                        '''
                     }
                 }
 
