@@ -54,7 +54,7 @@ pipeline {
                             cp "$ENV_FILE" .env
                             echo "=== DIRECTORY ==="
                             pwd
-                            
+                            npm ci
                             echo "=== PACKAGE.JSON ==="
                             cat package.json
                             
