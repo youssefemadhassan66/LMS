@@ -52,7 +52,25 @@ pipeline {
                     dir("${TEST_DIR}") {
                         sh """
                             cp "$ENV_FILE" .env
-                            npm ci
+                            echo "=== DIRECTORY ==="
+                            pwd
+                            
+                            echo "=== PACKAGE.JSON ==="
+                            cat package.json
+                            
+                            echo "=== TEST SCRIPT ==="
+                            npm pkg get scripts.test
+                            
+                            echo "=== JEST ==="
+                            npm ls jest
+                            
+                            echo "=== VITEST ==="
+                            npm ls vitest || true
+                            
+                            echo "=== VITE ==="
+                            npm ls vite || true
+                            
+                            echo "=== RUNNING TEST ==="
                             npm test
                         """
                     }
