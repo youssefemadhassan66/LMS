@@ -32,7 +32,7 @@ pipeline {
         stage('Checkout Backend') {
             agent { docker {
                     image 'git-agent:latest'
-                    args '-v git-repos:/git-repos'
+                    args '-v git-repos:/git-repos -e HOME=/home/jenkins'
                 }
             }
             steps {
