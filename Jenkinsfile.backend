@@ -54,10 +54,9 @@ pipeline {
                             cp "$ENV_FILE" .env
                             echo "=== DIRECTORY ==="
                             pwd
-                            npm ci
-                            cat package.json
-                            
-                            '''
+                            npm ci     
+                            rm ./.env
+                        '''
                     }
                 }
 
@@ -81,14 +80,16 @@ pipeline {
                 }
             }
             steps {
-                dir("${INFRA_DIR}") {
-                    script {
-                        sh """
-                            echo "WORKDIR=$WORKDIR"
-                            echo "INFRA_DIR=$INFRA_DIR"
-                        """
-                        composeBuild("${SERVICE_NAME}")
-                        composeDeploy("${SERVICE_NAME}")
+                withCredentials([file(credentialsId: 'backend-env', variable: 'ENV_FILE')]) {
+                    dir("${INFRA_DIR}") {
+                        script {
+                            sh """
+                                echo "WORKDIR=$WORKDIR"
+                                echo "INFRA_DIR=$INFRA_DIR"
+                            """
+                            composeBuild("${SERVICE_NAME}", "${ENV_FILE}")
+                            composeDeploy("${SERVICE_NAME}")
+                        }
                     }
                 }
             }
