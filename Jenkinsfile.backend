@@ -34,7 +34,14 @@ pipeline {
 
     stages {
 
-    
+        stage('Debug Parameters') {
+            steps {
+                script {
+                    echo "START_TEST value = ${params.START_TEST}"
+                    echo "START_TEST type = ${params.START_TEST.getClass()}"
+                }
+            }
+        }
         stage('Checkout Backend') {
             when {
                 expression {
