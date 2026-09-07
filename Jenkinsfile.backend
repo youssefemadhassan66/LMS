@@ -98,11 +98,11 @@ pipeline {
                 withCredentials([file(credentialsId: 'backend-env', variable: 'ENV_FILE')]) {
                     dir("${INFRA_DIR}") {
                         script {
-                            sh """
+                            sh '''
                                 echo "WORKDIR=$WORKDIR"
                                 echo "INFRA_DIR=$INFRA_DIR"
-                            """
-                            composeBuild("${SERVICE_NAME}")
+                            '''
+                            composeBuild("${SERVICE_NAME}", "${ENV_FILE}")
                             composeDeploy("${SERVICE_NAME}", "${ENV_FILE}")
                         }
                     }
