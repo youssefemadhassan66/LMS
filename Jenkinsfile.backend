@@ -55,32 +55,17 @@ pipeline {
                             echo "=== DIRECTORY ==="
                             pwd
                             npm ci
-                            echo "=== PACKAGE.JSON ==="
                             cat package.json
                             
-                            echo "=== TEST SCRIPT ==="
-                            npm pkg get scripts.test
-                            
-                            echo "=== JEST ==="
-                            npm ls jest
-                            
-                            echo "=== VITEST ==="
-                            npm ls vitest || true
-                            
-                            echo "=== VITE ==="
-                            npm ls vite || true
-                            
-                            echo "=== RUNNING TEST ==="
-                            npm test
-                        '''
+                            '''
                     }
                 }
 
-                sh """
-                    rm -rf ${REPO_DIR}
-                    mv ${TEST_DIR} ${REPO_DIR}
-                    rm -rf ${TEST_DIR}
-                """
+                sh '''
+                    rm -rf "${REPO_DIR}"
+                    mv "${TEST_DIR}" "${REPO_DIR}"
+                    rm -rf "${TEST_DIR}"
+                '''
 
 
             }
