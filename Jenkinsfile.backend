@@ -102,8 +102,8 @@ pipeline {
                                 echo "WORKDIR=$WORKDIR"
                                 echo "INFRA_DIR=$INFRA_DIR"
                             """
-                            composeBuild("${SERVICE_NAME}", "${ENV_FILE}")
-                            composeDeploy("${SERVICE_NAME}")
+                            composeBuild("${SERVICE_NAME}")
+                            composeDeploy("${SERVICE_NAME}", "${ENV_FILE}")
                         }
                     }
                 }
