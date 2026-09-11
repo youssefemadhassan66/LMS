@@ -36,8 +36,12 @@ const UpdateUserByIDService = async (id, data = {}) => {
     if (data[field] !== undefined) user[field] = data[field];
   }
 
-  const newPassword = typeof data.password === "string" ? data.password.trim() : "";
-  const passwordChanged = newPassword.length > 0;
+  // A password is "set" when the admin typed something other than whitespace.
+  // The value itself is stored EXACTLY as typed: login, signup and the reset
+  // flow all compare the raw string, so trimming it here would hash something
+  // different from what the account holder is later asked to type.
+  const newPassword = typeof data.password === "string" ? data.password : "";
+  const passwordChanged = newPassword.trim().length > 0;
 
   if (passwordChanged) {
     // Assigning the plaintext marks the path modified; the pre("save") hook
@@ -45,7 +49,15 @@ const UpdateUserByIDService = async (id, data = {}) => {
     user.password = newPassword;
   }
 
-  await user.save();
+  // validateModifiedOnly: a full-document validation here made an admin
+  // password reset fail for any account whose OTHER fields no longer satisfy
+  // the current schema — a 4-character UserName (public signup's Joi floor is
+  // 3, the model's is 5), or a FullName carrying a digit or a period. Mongoose
+  // rejected the whole save, so the new password never reached MongoDB and the
+  // account stayed locked out while the dialog reported an error about a name.
+  // Fields the admin actually changes are still validated: Mongoose only marks
+  // a path modified when the value really differs.
+  await user.save({ validateModifiedOnly: true });
 
   if (passwordChanged) {
     // The old credentials are gone, so the sessions minted with them must go
@@ -79,6 +91,10 @@ const createUserService = async (data) => {
     await ensureStudentProfile(newUser._id);
   }
 
+  // select:false only hides the hash on documents read back from MongoDB. The
+  // document create() returns is the one built in memory, so it still carries
+  // the bcrypt hash and the controller was serialising it into the response.
+  newUser.password = undefined;
   return newUser;
 };
 
@@ -110,7 +126,9 @@ const reviewUserApprovalService = async ({ userId, approvalStatus, rejectionReas
   const cleanedRejectionReason = typeof rejectionReason === "string" ? rejectionReason.trim() : "";
 
   user.rejectionReason = approvalStatus === "rejected" ? cleanedRejectionReason || undefined : undefined;
-  await user.save();
+  // Same reason as the update path: a legacy FullName or a short UserName must
+  // not be able to block an approval decision the admin has already made.
+  await user.save({ validateModifiedOnly: true });
 
   if (approvalStatus === "rejected") {
     await Token.deleteMany({ userId: user._id });
