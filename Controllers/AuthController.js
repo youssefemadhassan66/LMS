@@ -1,5 +1,6 @@
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import CatchAsync from "../Utilities/CatchAsync.js";
+import { bootstrapAdminService } from "../Services/BootstrapService.js";
 
 import { refreshTokenService, LogOutService, LoginService, SignUpService, ProtectionService, ForgotPasswordService, ResetPasswordService, VerifyEmailService, ImpersonateService, GenerateApiKeyService } from "../Services/AuthServices.js";
 import { notifyAdmins } from "../Services/NotificationHelpers.js";
@@ -54,7 +55,7 @@ const signUpController = CatchAsync(async (req, res, next) => {
     throw new AppErrorHelper("User data is missing while signing up!", 400);
   }
 
-  const result = await SignUpService(user);
+  const result = await SignUpService(user, undefined, { ip: req.ip });
 
   // Alert admins that a new account was created (best-effort, fire-and-forget)
   if (result.user) {
@@ -85,7 +86,13 @@ const loginController = CatchAsync(async (req, res, next) => {
     return next(new AppErrorHelper("Email and password are required!", 400));
   }
 
-  const { user, accessToken, refreshToken } = await LoginService(email, password);
+  // ip comes from req.ip, which app.set("trust proxy") already resolved through
+  // the configured proxy hops — reading X-Forwarded-For here would let the
+  // caller forge the address recorded against their own attempts.
+  const { user, accessToken, refreshToken } = await LoginService(email, password, {
+    ip: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
 
   if (!user || !accessToken || !refreshToken) {
     return next(new AppErrorHelper("Login failed, please try again!", 500));
@@ -97,6 +104,21 @@ const loginController = CatchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: { user: serializeAuthUser(user), token: accessToken },
+  });
+});
+
+// ─── Bootstrap the first admin ────────────────────────────────────────────────
+const bootstrapAdminController = CatchAsync(async (req, res) => {
+  const admin = await bootstrapAdminService({
+    payload: req.body,
+    providedSecret: req.headers["x-bootstrap-secret"],
+    ip: req.ip,
+  });
+
+  res.status(201).json({
+    status: "success",
+    message: "Admin created. This route is now permanently closed.",
+    data: { user: serializeAuthUser(admin) },
   });
 });
 
@@ -237,4 +259,5 @@ export {
   verifyEmailController,
   impersonateController,
   generateApiKeyController,
+  bootstrapAdminController,
 };

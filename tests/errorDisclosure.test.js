@@ -8,6 +8,11 @@ jest.setTimeout(30_000);
 // the absolute paths of the source files. These tests assert that the response
 // is safe anyway, because a deployment running under the wrong NODE_ENV must
 // not be a disclosure.
+// Restored in afterAll: the suites share one process and several do not pin
+// their own NODE_ENV.
+const originalNodeEnv = process.env.NODE_ENV;
+const originalSaltRounds = process.env.SALT_ROUNDS;
+
 Object.assign(process.env, {
   NODE_ENV: "development",
   TRUST_PROXY: "1",
@@ -38,6 +43,13 @@ let app;
 beforeAll(async () => {
   ({ default: app } = await import("../App.js"));
 }, 60_000);
+
+afterAll(() => {
+  if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = originalNodeEnv;
+  if (originalSaltRounds === undefined) delete process.env.SALT_ROUNDS;
+  else process.env.SALT_ROUNDS = originalSaltRounds;
+});
 
 // No database is needed: every request below is rejected by auth or by the
 // router before it reaches a model.

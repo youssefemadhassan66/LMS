@@ -4,17 +4,23 @@ import ApiFeatures from "../Utilities/ApiFeatures.js";
 import StudentProfile from "../Models/studentProfile.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import ensureStudentProfile from "../Utilities/StudentProfileHelper.js";
+import auditLog from "../Utilities/AuditLogger.js";
 
 // Admin only
+// Who reviewed an account is stored as an id, which tells a reader nothing.
+// Populate it everywhere the dashboard shows an account, so "approved by" can
+// name a person.
+const APPROVER_FIELDS = "FullName Email role";
+
 const getAllUsersService = async (query) => {
-  const features = new ApiFeatures(User.find({}), query).filter().sort().fields().pagination();
+  const features = new ApiFeatures(User.find({}).populate("approvalReviewedBy", APPROVER_FIELDS), query).filter().sort().fields().pagination();
   const users = await features.mongooseQuery;
 
   return users;
 };
 
 const getUserByIDService = async (id) => {
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate("approvalReviewedBy", APPROVER_FIELDS);
   return user;
 };
 
@@ -104,7 +110,7 @@ const getPendingApprovalUsersService = async () =>
     approvalStatus: "pending",
   }).sort({ createdAt: -1 });
 
-const reviewUserApprovalService = async ({ userId, approvalStatus, rejectionReason, reviewedBy }) => {
+const reviewUserApprovalService = async ({ userId, approvalStatus, rejectionReason, reviewedBy, context = {} }) => {
   if (!reviewedBy || reviewedBy.role !== "admin") {
     throw new AppErrorHelper("Only admins can review account approvals", 403);
   }
@@ -129,6 +135,26 @@ const reviewUserApprovalService = async ({ userId, approvalStatus, rejectionReas
   // Same reason as the update path: a legacy FullName or a short UserName must
   // not be able to block an approval decision the admin has already made.
   await user.save({ validateModifiedOnly: true });
+
+  // The generic middleware would log this as "update_user" with the URL in the
+  // meta. Record it as the decision it is, so the dashboard can say who
+  // approved whom and when without the reader decoding a path.
+  await auditLog({
+    actor: reviewedBy._id,
+    actorEmail: reviewedBy.Email,
+    actorRole: reviewedBy.role,
+    action: approvalStatus === "approved" ? "approve_user" : "reject_user",
+    targetModel: "User",
+    targetId: user._id,
+    meta: {
+      subjectEmail: user.Email,
+      subjectName: user.FullName,
+      subjectRole: user.role,
+      reviewedAt: user.approvalReviewedAt,
+      ...(approvalStatus === "rejected" && user.rejectionReason ? { rejectionReason: user.rejectionReason } : {}),
+    },
+    ip: context.ip,
+  });
 
   if (approvalStatus === "rejected") {
     await Token.deleteMany({ userId: user._id });

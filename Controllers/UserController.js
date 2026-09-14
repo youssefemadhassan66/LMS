@@ -96,6 +96,7 @@ const reviewUserApprovalController = CatchAsync(async (req, res) => {
     approvalStatus: req.body.approvalStatus,
     rejectionReason: req.body.rejectionReason,
     reviewedBy: req.user,
+    context: { ip: req.ip },
   });
 
   res.status(200).json({

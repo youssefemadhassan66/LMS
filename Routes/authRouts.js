@@ -1,15 +1,22 @@
 import express from "express";
 
-import { signUpController, loginController, RefreshController, logoutController, protectionController, getCurrentUserController, restrictedToController, forgotPasswordController, resetPasswordController, verifyEmailController, impersonateController, generateApiKeyController } from "../Controllers/AuthController.js";
-import { validate } from "../Middleware/validate.js";
 import {
-  signupSchema,
-  loginSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  tokenParamSchema,
-  userIdParamSchema,
-} from "../Validation/authValidation.js";
+  signUpController,
+  loginController,
+  RefreshController,
+  logoutController,
+  protectionController,
+  getCurrentUserController,
+  restrictedToController,
+  forgotPasswordController,
+  resetPasswordController,
+  verifyEmailController,
+  impersonateController,
+  generateApiKeyController,
+  bootstrapAdminController,
+} from "../Controllers/AuthController.js";
+import { validate } from "../Middleware/validate.js";
+import { signupSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, tokenParamSchema, userIdParamSchema, bootstrapAdminSchema } from "../Validation/authValidation.js";
 
 const router = express.Router();
 
@@ -125,13 +132,15 @@ router.post("/login", validate(loginSchema), loginController);
  */
 router.post("/refresh", RefreshController);
 
+/**
+ * Creates the first admin of an empty database, then closes for good.
+ * Requires ADMIN_BOOTSTRAP_SECRET to be set and sent as x-bootstrap-secret,
+ * and refuses once any admin exists. See Services/BootstrapService.js.
+ */
+router.post("/bootstrap-admin", validate(bootstrapAdminSchema), bootstrapAdminController);
+
 router.post("/forgot-password", validate(forgotPasswordSchema), forgotPasswordController);
-router.post(
-  "/reset-password/:token",
-  validate(tokenParamSchema, "params"),
-  validate(resetPasswordSchema),
-  resetPasswordController,
-);
+router.post("/reset-password/:token", validate(tokenParamSchema, "params"), validate(resetPasswordSchema), resetPasswordController);
 router.get("/verify-email/:token", validate(tokenParamSchema, "params"), verifyEmailController);
 
 router.use(protectionController);
@@ -157,11 +166,6 @@ router.get("/logout", logoutController);
 router.post("/api-key", restrictedToController("parent"), generateApiKeyController);
 
 // Admin only: impersonate any user for debugging
-router.post(
-  "/impersonate/:userId",
-  restrictedToController("admin"),
-  validate(userIdParamSchema, "params"),
-  impersonateController,
-);
+router.post("/impersonate/:userId", restrictedToController("admin"), validate(userIdParamSchema, "params"), impersonateController);
 
 export default router;
