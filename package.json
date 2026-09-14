@@ -15,6 +15,7 @@
     "seed:sample": "node scripts/seedSampleData.js",
     "seed": "node seed-data.js",
     "db:reset": "node scripts/resetDatabase.js",
+    "admin:create": "node scripts/createAdmin.js",
     "seed:assigned-demo-data": "node scripts/seedAssignedDemoData.js",
     "seed:badges": "node scripts/seedBadges.js",
     "migrate:student-instructors": "node scripts/backfillStudentInstructorAssignments.js",

@@ -39,7 +39,10 @@ const HandleMulterError = (err) => {
   return new AppErrorHelper(codeToMessage[err.code] || `Upload error: ${err.message}`, 400);
 };
 
-const DevelopmentErrorHandler = (err, req, res) => {
+// Stack traces, the raw error object and internal file paths are for the log
+// stream, never for the response body. This branch is opt-in only — see
+// shouldExposeErrorDetails below.
+const DebugErrorHandler = (err, req, res) => {
   logger.info(err);
   res.status(Number(err.statusCode) || 500).json({
     status: err.status,
@@ -49,7 +52,10 @@ const DevelopmentErrorHandler = (err, req, res) => {
   });
 };
 
-const ProductionErrorHandler = (err, req, res) => {
+// The safe response: a status and a message the caller can act on, nothing
+// about how the server is built. Non-operational errors keep their detail in
+// the log and say nothing beyond "something went wrong" over the wire.
+const SafeErrorHandler = (err, req, res) => {
   const statusCode = Number(err.statusCode) || 500;
   if (err.isOperational) {
     res.status(statusCode).json({
@@ -76,20 +82,35 @@ const normalize = (err) => {
   return normalized;
 };
 
+// Leaking internals used to hang on NODE_ENV alone, which made a deployment
+// mistake a disclosure: a server running with NODE_ENV=development — the
+// default this app falls back to, and what the production container was
+// actually started with — answered every error with the stack trace, the
+// absolute paths of the source files, and the whole error object.
+//
+// So the detailed body is now opt-in and says so in its own name. It is
+// returned only when EXPOSE_ERROR_DETAILS is explicitly "true" AND the app is
+// not running as production, which no deployment does by accident. Every other
+// combination — the variable unset, misspelled, left over in a production
+// container — gets the safe response. Local debugging sets it in .env.
+const shouldExposeErrorDetails = () => {
+  if (process.env.EXPOSE_ERROR_DETAILS !== "true") return false;
+  return (process.env.NODE_ENV || "development").toLowerCase() !== "production";
+};
+
 const GlobalErrorHandler = (err, req, res, next) => {
   err.status = err.status || "fail";
   err.statusCode = err.statusCode || 500;
 
-  const isProduction = (process.env.NODE_ENV || "development").toLowerCase() === "production";
+  const error = normalize(err);
 
-  if (isProduction) {
-    const error = normalize(err);
-    ProductionErrorHandler(error, req, res);
-  } else {
-    const devErr = normalize(err);
-    devErr.stack = err.stack;
-    DevelopmentErrorHandler(devErr, req, res);
+  if (shouldExposeErrorDetails()) {
+    error.stack = err.stack;
+    DebugErrorHandler(error, req, res);
+    return;
   }
+
+  SafeErrorHandler(error, req, res);
 };
 
 export default GlobalErrorHandler;
