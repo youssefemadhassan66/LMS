@@ -7,6 +7,7 @@ import {
   getStudentBadges,
   resolveStudentProfileId,
 } from "../Services/GamificationService.js";
+import { assertInstructorAssignedToProfile } from "../Services/StudentInstructorAssignmentService.js";
 
 // ─── Get My Gamification Profile ──────────────────────────────────────────────
 const getMyGamificationProfileController = CatchAsync(async (req, res, next) => {
@@ -30,6 +31,11 @@ const getStudentGamificationProfileController = CatchAsync(async (req, res, next
   const profile = await StudentProfile.findById(profileId);
   if (!profile) {
     return next(new AppErrorHelper("Student profile not found", 404));
+  }
+
+  // Admins see every student; instructors only the students assigned to them.
+  if (req.user.role === "instructor") {
+    await assertInstructorAssignedToProfile(req.user._id, profile._id);
   }
 
   const data = await getProfileStats(profileId);
