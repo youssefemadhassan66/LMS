@@ -69,6 +69,35 @@ export const loginSchema = Joi.object({
   }),
 });
 
+// ─── Bootstrap the first admin ───────────────────────────────────────────────
+// Same field rules as signup, minus role: this route only ever makes an admin,
+// so role is not accepted at all rather than validated and ignored.
+export const bootstrapAdminSchema = Joi.object({
+  FullName: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .pattern(/^[\p{L}\s'\-]{2,}$/u)
+    .required()
+    .messages({
+      "string.pattern.base": "Full name may only contain letters, spaces, hyphens, and apostrophes",
+      "any.required": "Full name is required",
+    }),
+  UserName: Joi.string()
+    .trim()
+    .min(5)
+    .max(30)
+    .pattern(/^[a-zA-Z0-9_]+$/)
+    .required()
+    .messages({
+      "string.min": "Username must be at least 5 characters",
+      "string.pattern.base": "Username may only contain letters, numbers, and underscores",
+      "any.required": "Username is required",
+    }),
+  Email: emailRule.required(),
+  password: passwordRule.required(),
+});
+
 // ─── Forgot password ─────────────────────────────────────────────────────────
 export const forgotPasswordSchema = Joi.object({
   email: emailRule.required(),

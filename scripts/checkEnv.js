@@ -62,6 +62,13 @@ notes.push(
   isProduction ? "NODE_ENV=production: rate limiters ACTIVE, HSTS on, logs at warn, error responses safe." : `NODE_ENV=${NODE_ENV || "not set"}: rate limiters DISABLED (no brute-force protection), HSTS off. ` + "Error responses are safe regardless.",
 );
 
+// The bootstrap route is meant to be open for minutes, not for the life of the
+// deployment. It closes itself once an admin exists, so this is a reminder
+// rather than a finding.
+if (isSet("ADMIN_BOOTSTRAP_SECRET")) {
+  notes.push("ADMIN_BOOTSTRAP_SECRET is set, so POST /api/v1/auth/bootstrap-admin is reachable. " + "It refuses once any admin exists; unset it when you are done.");
+}
+
 if (process.env.EXPOSE_ERROR_DETAILS === "true") {
   if (isProduction) {
     notes.push("EXPOSE_ERROR_DETAILS=true is set but ignored under NODE_ENV=production.");

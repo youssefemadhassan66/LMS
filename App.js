@@ -302,6 +302,21 @@ app.use(
   }),
 );
 
+// The bootstrap secret is the only thing standing between a caller and an
+// admin account on a database that has none, so guessing it has to be slow.
+// Deliberately not skipped in development: this limit is the point of the
+// route, and a local run should behave the way production does.
+app.use(
+  "/api/v1/auth/bootstrap-admin",
+  rateLimit({
+    ...authLimiterDefaults,
+    skip: () => false,
+    max: Number(process.env.BOOTSTRAP_RATE_MAX || 5),
+    message: "Too many attempts, please try again after 15 minutes.",
+    keyGenerator: (req) => `bootstrap:${clientIpKey(req)}`,
+  }),
+);
+
 // Password reset was not rate limited at all: /forgot-password is an unauthenticated
 // email trigger (spam amplifier) and /reset-password/:token is a 64-hex-char guess.
 app.use(

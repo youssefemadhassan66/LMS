@@ -65,7 +65,7 @@ async function SendTokenService(user) {
   };
 }
 
-const SignUpService = async (userData, _origin) => {
+const SignUpService = async (userData, _origin, context = {}) => {
   const user = { ...userData };
 
   const newUser = await User.create({
@@ -86,20 +86,58 @@ const SignUpService = async (userData, _origin) => {
     await ensureStudentProfile(newUser._id);
   }
 
+  // The account is its own actor here: nobody else was involved, and this is
+  // the row the dashboard reads for "signed up at".
+  await auditLog({
+    actor: newUser._id,
+    actorEmail: newUser.Email,
+    actorRole: newUser.role,
+    action: "signup",
+    targetModel: "User",
+    targetId: newUser._id,
+    meta: { role: newUser.role, approvalStatus: newUser.approvalStatus, requiresApproval: true },
+    ip: context.ip,
+  });
+
   // New parent and student registrations need admin approval before login.
   newUser.password = undefined;
   return { user: newUser, requiresApproval: true };
 };
-const LoginService = async (email, password) => {
+const LoginService = async (email, password, context = {}) => {
   // Removed transaction support for standalone MongoDB (development environment)
   // Transactions require MongoDB replica set or sharded cluster
 
   const user = await User.findOne({ Email: email }).select("+password");
 
-  // Use the same generic error for both "no user" and "wrong password"
-  // to prevent email enumeration by attackers.
-  if (!user || !(await ComparePasswordHelper(password, user.password))) {
+  // The caller still gets one generic message for every failure — the reason
+  // is recorded for the admin dashboard, never returned to whoever is trying.
+  // Telling them apart over the wire is what makes email enumeration possible.
+  const recordFailure = (reason) =>
+    auditLog({
+      actor: user?._id,
+      actorEmail: email,
+      actorRole: user?.role,
+      action: "login_failed",
+      targetModel: user ? "User" : undefined,
+      targetId: user?._id,
+      meta: { reason },
+      ip: context.ip,
+    });
+
+  if (!user) {
+    await recordFailure("unknown_email");
     throw new AppErrorHelper("Invalid email or password", 401);
+  }
+
+  if (!(await ComparePasswordHelper(password, user.password))) {
+    await recordFailure("wrong_password");
+    throw new AppErrorHelper("Invalid email or password", 401);
+  }
+
+  if (!isAccountApproved(user)) {
+    // Not a credential failure: the password was right. Worth separating, so a
+    // pending account repeatedly trying to get in does not read as an attack.
+    await recordFailure(`account_${user.approvalStatus || "approved"}`);
   }
 
   assertAccountIsApproved(user);
@@ -118,6 +156,17 @@ const LoginService = async (email, password) => {
   }
 
   const result = await SendTokenService(user);
+
+  await auditLog({
+    actor: user._id,
+    actorEmail: user.Email,
+    actorRole: user.role,
+    action: "login",
+    targetModel: "User",
+    targetId: user._id,
+    meta: { userAgent: context.userAgent },
+    ip: context.ip,
+  });
 
   return result;
 };
@@ -147,11 +196,7 @@ const refreshTokenService = async (cookieToken) => {
   // Claim the rotation atomically: of N concurrent refreshes presenting the same
   // token, exactly one wins this update. MongoDB does the serialising, so the
   // losers take the grace branch below instead of racing on a delete.
-  const claimed = await Token.findOneAndUpdate(
-    { _id: storedToken._id, rotatedAt: null },
-    { $set: { rotatedAt: new Date() } },
-    { new: true },
-  );
+  const claimed = await Token.findOneAndUpdate({ _id: storedToken._id, rotatedAt: null }, { $set: { rotatedAt: new Date() } }, { new: true });
 
   if (!claimed) {
     // Someone else already exchanged this token. Re-read rather than trusting
