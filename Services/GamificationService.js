@@ -1,11 +1,14 @@
-import Gamification, { XP_PER_LEVEL } from "../Models/Gamification.js";
+import mongoose from "mongoose";
+import Gamification, { XP_PER_LEVEL, XP_REASONS, levelForXP } from "../Models/Gamification.js";
 import { StudentBadge } from "../Models/Badge.js";
 import { evaluateBadges } from "./BadgeEvaluator.js";
 import { createNotificationService } from "./NotificationService.js";
 import StudentProfile from "../Models/studentProfile.js";
 import { emitToUser } from "../Utilities/SocketManager.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
-import ApiFeatures from "../Utilities/ApiFeatures.js";
+
+export const SESSION_ATTENDED_XP = 15;
+const MAX_PAGE_SIZE = 100;
 
 // Human-friendly phrasing for XP reasons, used in notification messages.
 const XP_REASON_LABELS = {
@@ -22,22 +25,86 @@ const XP_REASON_LABELS = {
   lesson_completed: "completing a lesson",
 };
 
+// A source document earns XP once per group: a submission gets submit XP once
+// (on time or late, however often it is re-saved) and review XP once.
+const AWARD_GROUPS = {
+  task_submit: ["task_submit", "task_submit_late"],
+  task_submit_late: ["task_submit", "task_submit_late"],
+  review_perfect: ["review_perfect", "review_excellent"],
+  review_excellent: ["review_perfect", "review_excellent"],
+};
+
+// Stats counters (used by badge conditions) bumped by each XP reason.
+const STATS_FOR_REASON = {
+  task_submit: ["tasksSubmitted", "tasksOnTime"],
+  task_submit_late: ["tasksSubmitted"],
+  session_attended: ["sessionsAttended"],
+  challenge_solved: ["challengesSolved"],
+  puzzle_solved: ["puzzlesSolved"],
+  exam_passed: ["examsAbovePassing"],
+  review_perfect: ["perfectScores"],
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const startOfDay = (date) => {
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  return day;
+};
+
+const daysBetween = (earlier, later) => Math.round((startOfDay(later) - startOfDay(earlier)) / DAY_MS);
+
+/**
+ * Streak after activity at `now`: same day keeps it, the next day extends it,
+ * any longer gap restarts it at 1.
+ */
+const nextStreak = (gamification, now) => {
+  const today = startOfDay(now);
+  if (!gamification.lastActivityDate) return { currentStreak: 1, lastActivityDate: today };
+
+  const gap = daysBetween(gamification.lastActivityDate, now);
+  if (gap === 0) return { currentStreak: gamification.currentStreak || 1, lastActivityDate: today };
+  if (gap === 1) return { currentStreak: (gamification.currentStreak || 0) + 1, lastActivityDate: today };
+  return { currentStreak: 1, lastActivityDate: today };
+};
+
+/**
+ * The stored streak only changes when XP is earned, so a student inactive since
+ * before yesterday still has their old streak on file. Report it as broken.
+ */
+export const liveStreak = (gamification, now = new Date()) => {
+  if (!gamification?.lastActivityDate) return 0;
+  return daysBetween(gamification.lastActivityDate, now) <= 1 ? gamification.currentStreak : 0;
+};
+
+export const startOfYesterday = (now = new Date()) => new Date(startOfDay(now).getTime() - DAY_MS);
+
+export const boundedPagination = (queryString = {}, defaultLimit = 20) => {
+  const page = Math.max(parseInt(queryString.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(queryString.limit, 10) || defaultLimit, 1), MAX_PAGE_SIZE);
+  return { page, limit, skip: (page - 1) * limit };
+};
+
+const toObjectId = (value) => {
+  const id = value?._id ?? value;
+  return id instanceof mongoose.Types.ObjectId ? id : new mongoose.Types.ObjectId(String(id));
+};
+
 // ─── Ensure Profile ──────────────────────────────────────────────────────────
 /**
  * Lazily creates a Gamification document on first interaction.
  * Returns the existing or newly created document.
  */
-export const ensureProfile = async (studentProfileId) => {
-  let profile = await Gamification.findOne({ studentProfileId });
-  if (!profile) {
-    profile = await Gamification.create({ studentProfileId });
-  }
-  return profile;
-};
+export const ensureProfile = async (studentProfileId) => Gamification.findOneAndUpdate({ studentProfileId }, { $setOnInsert: { studentProfileId } }, { upsert: true, returnDocument: "after", setDefaultsOnInsert: true });
 
 // ─── Award XP ────────────────────────────────────────────────────────────────
 /**
  * Central XP award function. All gamification XP flows through here.
+ *
+ * Awards are atomic, so concurrent awards cannot overwrite each other, and
+ * idempotent per source: when `sourceId` is given, a second award for the same
+ * source and reason group is a no-op. Hooks that fire on every save rely on this.
  *
  * @param {string} studentProfileId
  * @param {number} amount - XP to award
@@ -46,32 +113,43 @@ export const ensureProfile = async (studentProfileId) => {
  * @returns {{ gamification, leveledUp, newlyUnlockedBadges }}
  */
 export const awardXP = async (studentProfileId, amount, reason, sourceId = null) => {
-  if (amount <= 0) return { gamification: null, leveledUp: false, newlyUnlockedBadges: [] };
+  const nothingAwarded = { gamification: null, leveledUp: false, newlyUnlockedBadges: [] };
+  if (!(amount > 0)) return nothingAwarded;
+  if (!XP_REASONS.includes(reason)) throw new Error(`Unknown XP reason: ${reason}`);
 
-  const gamification = await ensureProfile(studentProfileId);
-  const previousLevel = gamification.level;
+  const current = await ensureProfile(studentProfileId);
+  const now = new Date();
+  const streak = nextStreak(current, now);
+  const source = sourceId ? toObjectId(sourceId) : null;
 
-  // Add XP
-  gamification.xp += amount;
-  gamification.lifetimeXP += amount;
+  const filter = { _id: current._id };
+  if (source) {
+    filter.xpHistory = {
+      $not: { $elemMatch: { sourceId: source, reason: { $in: AWARD_GROUPS[reason] || [reason] } } },
+    };
+  }
 
-  // Log to history
-  gamification.xpHistory.push({
-    amount,
-    reason,
-    sourceId,
-    awardedAt: new Date(),
-  });
+  const inc = { xp: amount, lifetimeXP: amount };
+  for (const stat of STATS_FOR_REASON[reason] || []) inc[`stats.${stat}`] = 1;
 
-  // Update streak
-  await _updateStreakInternal(gamification);
+  const updated = await Gamification.findOneAndUpdate(
+    filter,
+    {
+      $inc: inc,
+      $push: { xpHistory: { amount, reason, sourceId: source, awardedAt: now } },
+      $set: streak,
+      $max: { longestStreak: streak.currentStreak },
+    },
+    { returnDocument: "after" },
+  );
+  if (!updated) return nothingAwarded; // already awarded for this source
 
-  // Increment stat counters based on reason
-  _incrementStat(gamification, reason);
+  const previousLevel = levelForXP(updated.xp - amount);
+  await Gamification.updateOne({ _id: updated._id }, { $max: { level: levelForXP(updated.xp) } });
 
-  // Save (triggers pre-save level calculation)
-  await gamification.save();
-
+  // Badges may add bonus XP, so read the totals for notifications afterwards.
+  const newlyUnlockedBadges = await evaluateBadges(studentProfileId);
+  const gamification = await Gamification.findById(updated._id);
   const leveledUp = gamification.level > previousLevel;
 
   // Resolve the student's user id + parents once for all notifications below.
@@ -86,9 +164,7 @@ export const awardXP = async (studentProfileId, amount, reason, sourceId = null)
       studentUserId = profile.user._id?.toString?.() || profile.user.toString();
       studentName = profile.user.FullName || studentName;
     }
-    parentIds = (profile?.parents || [])
-      .map((p) => p?._id?.toString?.() || p?.toString?.())
-      .filter(Boolean);
+    parentIds = (profile?.parents || []).map((p) => p?._id?.toString?.() || p?.toString?.()).filter(Boolean);
   } catch (err) {
     console.error("[Gamification] Failed to load profile for notifications:", err.message);
   }
@@ -124,9 +200,6 @@ export const awardXP = async (studentProfileId, amount, reason, sourceId = null)
       console.error("[Gamification] Level-up notification failed:", err.message);
     }
   }
-
-  // Evaluate badges (may unlock new ones)
-  const newlyUnlockedBadges = await evaluateBadges(studentProfileId);
 
   // Emit XP earned event + notify student and parents
   if (studentUserId) {
@@ -167,69 +240,16 @@ export const awardXP = async (studentProfileId, amount, reason, sourceId = null)
   return { gamification, leveledUp, newlyUnlockedBadges };
 };
 
-// ─── Increment Stat ──────────────────────────────────────────────────────────
+// ─── Session Attendance ──────────────────────────────────────────────────────
 /**
- * Bumps the relevant stats counter based on the XP reason.
+ * Awards attendance XP for a completed, attended session. Safe to call on every
+ * update: awardXP only pays once per session.
  */
-const _incrementStat = (gamification, reason) => {
-  const map = {
-    task_submit: "tasksSubmitted",
-    task_submit_late: "tasksSubmitted",
-    session_attended: "sessionsAttended",
-    challenge_solved: "challengesSolved",
-    puzzle_solved: "puzzlesSolved",
-    exam_passed: "examsAbovePassing",
-    review_perfect: "perfectScores",
-  };
-
-  // tasksOnTime is only for on-time submissions
-  if (reason === "task_submit") {
-    gamification.stats.tasksOnTime = (gamification.stats.tasksOnTime || 0) + 1;
-  }
-
-  const statKey = map[reason];
-  if (statKey && gamification.stats[statKey] !== undefined) {
-    gamification.stats[statKey] += 1;
-  }
-};
-
-// ─── Internal Streak Update ──────────────────────────────────────────────────
-/**
- * Updates the streak on the gamification document (in memory, not saved).
- */
-const _updateStreakInternal = async (gamification) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (!gamification.lastActivityDate) {
-    // First activity ever
-    gamification.currentStreak = 1;
-    gamification.lastActivityDate = today;
-    return;
-  }
-
-  const lastDate = new Date(gamification.lastActivityDate);
-  lastDate.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    // Same day — no streak change
-    return;
-  } else if (diffDays === 1) {
-    // Consecutive day — extend streak
-    gamification.currentStreak += 1;
-  } else {
-    // Streak broken — reset
-    gamification.currentStreak = 1;
-  }
-
-  gamification.lastActivityDate = today;
-
-  // Update longest streak record
-  if (gamification.currentStreak > gamification.longestStreak) {
-    gamification.longestStreak = gamification.currentStreak;
-  }
+export const awardSessionAttendanceXP = async (session) => {
+  if (session?.status !== "completed" || session.StudentAttended !== true) return;
+  const profileId = session.studentProfileId?._id || session.studentProfileId;
+  if (!profileId) return;
+  await awardXP(profileId, SESSION_ATTENDED_XP, "session_attended", session._id);
 };
 
 // ─── Get Profile Stats ───────────────────────────────────────────────────────
@@ -245,7 +265,7 @@ export const getProfileStats = async (studentProfileId) => {
     xp: gamification.xp,
     level: gamification.level,
     lifetimeXP: gamification.lifetimeXP,
-    currentStreak: gamification.currentStreak,
+    currentStreak: liveStreak(gamification),
     longestStreak: gamification.longestStreak,
     lastActivityDate: gamification.lastActivityDate,
     stats: gamification.stats,
@@ -256,18 +276,9 @@ export const getProfileStats = async (studentProfileId) => {
 
 // ─── Get XP History ──────────────────────────────────────────────────────────
 export const getXPHistory = async (studentProfileId, queryString = {}) => {
+  const { page, limit, skip } = boundedPagination(queryString);
   const gamification = await Gamification.findOne({ studentProfileId });
-  if (!gamification) return [];
-
-  let history = [...gamification.xpHistory];
-
-  // Sort newest first
-  history.sort((a, b) => b.awardedAt - a.awardedAt);
-
-  // Simple pagination
-  const page = parseInt(queryString.page, 10) || 1;
-  const limit = parseInt(queryString.limit, 10) || 20;
-  const skip = (page - 1) * limit;
+  const history = [...(gamification?.xpHistory || [])].sort((a, b) => b.awardedAt - a.awardedAt);
 
   return {
     total: history.length,
@@ -285,18 +296,22 @@ export const getStudentBadges = async (studentProfileId) => {
 // ─── Resolve Student Profile ID ──────────────────────────────────────────────
 /**
  * For students: resolve their user ID to a studentProfileId.
- * For parents: resolve to their children's profile IDs.
+ * For parents: the requested child, or their first child when none is named.
  */
-export const resolveStudentProfileId = async (user) => {
+export const resolveStudentProfileId = async (user, requestedProfileId) => {
   if (user.role === "student") {
     const profile = await StudentProfile.findOne({ user: user._id });
     if (!profile) throw new AppErrorHelper("Student profile not found", 404);
     return profile._id;
   }
   if (user.role === "parent") {
+    if (requestedProfileId !== undefined) {
+      const child = typeof requestedProfileId === "string" && mongoose.isValidObjectId(requestedProfileId) ? await StudentProfile.findOne({ _id: requestedProfileId, parents: user._id }) : null;
+      if (!child) throw new AppErrorHelper("Not allowed to view this child's progress", 403);
+      return child._id;
+    }
     const childProfiles = await StudentProfile.find({ parents: user._id });
     if (!childProfiles.length) throw new AppErrorHelper("No children profiles found", 404);
-    // Return first child for single-profile endpoints
     return childProfiles[0]._id;
   }
   throw new AppErrorHelper("Invalid role for this operation", 403);

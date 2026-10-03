@@ -138,15 +138,11 @@ sessionSchema.post("save", async function () {
 
 // ─── Gamification XP Hook ─────────────────────────────────────────────────────
 // Awards attendance XP when a session is completed and the student attended.
+// Updates that bypass save() (findByIdAndUpdate, updateMany) award it in sessionService.
 sessionSchema.post("save", async function () {
   try {
-    if (this.status === "completed" && this.StudentAttended === true) {
-      const { awardXP } = await import("../Services/GamificationService.js");
-      const profileId = this.studentProfileId?._id || this.studentProfileId;
-      if (profileId) {
-        await awardXP(profileId, 15, "session_attended", this._id);
-      }
-    }
+    const { awardSessionAttendanceXP } = await import("../Services/GamificationService.js");
+    await awardSessionAttendanceXP(this);
   } catch (err) {
     console.error("[Session hook] Gamification XP award failed:", err.message);
   }

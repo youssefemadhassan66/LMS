@@ -1,79 +1,38 @@
 import Gamification from "../Models/Gamification.js";
-import { StudentBadge } from "../Models/Badge.js";
 import StudentProfile from "../Models/studentProfile.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
-import mongoose from "mongoose";
+import { boundedPagination, startOfYesterday } from "./GamificationService.js";
+
+const PERIOD_DAYS = { weekly: 7, monthly: 30 };
+const PERIODS = ["all_time", ...Object.keys(PERIOD_DAYS)];
+const METRIC_SORT_FIELDS = { xp: "xp", challenges: "stats.challengesSolved", streak: "longestStreak" };
+
+const assertOneOf = (name, value, allowed) => {
+  if (!allowed.includes(value)) {
+    throw new AppErrorHelper(`Invalid ${name}. Allowed values: ${allowed.join(", ")}`, 400);
+  }
+};
 
 /**
- * Build and execute the leaderboard aggregation pipeline.
- *
- * @param {Object} options
- * @param {string} [options.period]  - "weekly" | "monthly" | "all_time" (default)
- * @param {string} [options.metric]  - "xp" | "challenges" | "streak" (default: "xp")
- * @param {string} [options.grade]   - Filter by student grade
- * @param {number} [options.page]    - Page number (default: 1)
- * @param {number} [options.limit]   - Results per page (default: 20)
- * @param {string} [options.userId]  - Current user ID, for calculating "myRank"
- * @returns {{ leaderboard, myRank, totalStudents }}
+ * Every ranked student, best first. Time-based periods always rank by XP
+ * earned in the period; `metric` applies to all_time only.
  */
-export const getLeaderboardService = async (options = {}) => {
-  const {
-    period = "all_time",
-    metric = "xp",
-    grade,
-    page = 1,
-    limit = 20,
-    userId,
-  } = options;
-
-  const skip = (page - 1) * limit;
-
-  // ─── Period filter ──────────────────────────────────────────────────
-  let periodMatch = {};
-
-  if (period === "weekly") {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    periodMatch = { "xpHistory.awardedAt": { $gte: weekAgo } };
-  } else if (period === "monthly") {
-    const monthAgo = new Date();
-    monthAgo.setMonth(monthAgo.getMonth() - 1);
-    periodMatch = { "xpHistory.awardedAt": { $gte: monthAgo } };
+const rankStudents = async ({ period: requestedPeriod, metric: requestedMetric, grade } = {}) => {
+  const period = requestedPeriod || "all_time";
+  const metric = requestedMetric || "xp";
+  assertOneOf("period", period, PERIODS);
+  assertOneOf("metric", metric, Object.keys(METRIC_SORT_FIELDS));
+  if (grade !== undefined && typeof grade !== "string") {
+    throw new AppErrorHelper("Invalid grade", 400);
   }
 
-  // ─── Sort field based on metric ─────────────────────────────────────
-  let sortField;
-  let projectXPField;
+  const timeBased = period !== "all_time";
+  const sortField = timeBased ? "periodXP" : METRIC_SORT_FIELDS[metric];
 
-  if (period !== "all_time") {
-    // For time-based periods, we need to sum XP from xpHistory within the date range
-    sortField = "periodXP";
-    projectXPField = true;
-  } else {
-    switch (metric) {
-      case "challenges":
-        sortField = "stats.challengesSolved";
-        break;
-      case "streak":
-        sortField = "longestStreak";
-        break;
-      default:
-        sortField = "xp";
-    }
-  }
+  const pipeline = [{ $match: { xp: { $gt: 0 } } }];
 
-  // ─── Build pipeline ─────────────────────────────────────────────────
-  const pipeline = [];
-
-  // Stage 1: Base match
-  pipeline.push({ $match: { xp: { $gt: 0 } } });
-
-  // Stage 2: Period-based XP calculation
-  if (period !== "all_time") {
-    const dateThreshold = period === "weekly"
-      ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
+  if (timeBased) {
+    const since = new Date(Date.now() - PERIOD_DAYS[period] * 24 * 60 * 60 * 1000);
     pipeline.push(
       {
         $addFields: {
@@ -83,7 +42,7 @@ export const getLeaderboardService = async (options = {}) => {
                 $filter: {
                   input: "$xpHistory",
                   as: "entry",
-                  cond: { $gte: ["$$entry.awardedAt", dateThreshold] },
+                  cond: { $gte: ["$$entry.awardedAt", since] },
                 },
               },
               initialValue: 0,
@@ -96,7 +55,6 @@ export const getLeaderboardService = async (options = {}) => {
     );
   }
 
-  // Stage 3: Join StudentProfile
   pipeline.push(
     {
       $lookup: {
@@ -109,12 +67,10 @@ export const getLeaderboardService = async (options = {}) => {
     { $unwind: "$profile" },
   );
 
-  // Stage 4: Grade filter
   if (grade) {
     pipeline.push({ $match: { "profile.grade": grade } });
   }
 
-  // Stage 5: Join User
   pipeline.push(
     {
       $lookup: {
@@ -127,71 +83,70 @@ export const getLeaderboardService = async (options = {}) => {
     { $unwind: "$user" },
     // Only include active users
     { $match: { "user.isActive": { $ne: false } } },
-  );
-
-  // Stage 6: Count badges
-  pipeline.push(
     {
       $lookup: {
         from: "studentbadges",
         localField: "studentProfileId",
         foreignField: "studentProfileId",
-        as: "badges",
+        pipeline: [{ $count: "count" }],
+        as: "badgeTotals",
+      },
+    },
+    {
+      $setWindowFields: {
+        sortBy: { [sortField]: -1 },
+        output: { rank: { $rank: {} } },
+      },
+    },
+    { $sort: { rank: 1, _id: 1 } },
+    {
+      $project: {
+        rank: 1,
+        studentProfileId: 1,
+        userId: "$user._id",
+        studentName: "$user.FullName",
+        userName: "$user.UserName",
+        avatar: "$user.avatar",
+        grade: "$profile.grade",
+        xp: timeBased ? "$periodXP" : "$xp",
+        level: 1,
+        // The stored streak goes stale once a student stops earning XP.
+        currentStreak: {
+          $cond: [{ $gte: ["$lastActivityDate", startOfYesterday()] }, "$currentStreak", 0],
+        },
+        longestStreak: 1,
+        challengesSolved: "$stats.challengesSolved",
+        puzzlesSolved: "$stats.puzzlesSolved",
+        badgeCount: { $ifNull: [{ $first: "$badgeTotals.count" }, 0] },
       },
     },
   );
 
-  // Stage 7: Sort
-  pipeline.push({ $sort: { [sortField]: -1 } });
+  return Gamification.aggregate(pipeline);
+};
 
-  // Stage 8: Add rank
-  pipeline.push({
-    $setWindowFields: {
-      sortBy: { [sortField]: -1 },
-      output: { rank: { $rank: {} } },
-    },
-  });
+const isUser = (userId) => (entry) => entry.userId && entry.userId.toString() === userId.toString();
 
-  // Stage 9: Project final shape
-  pipeline.push({
-    $project: {
-      rank: 1,
-      studentProfileId: 1,
-      userId: "$user._id",
-      studentName: "$user.FullName",
-      userName: "$user.UserName",
-      avatar: "$user.avatar",
-      grade: "$profile.grade",
-      xp: period !== "all_time" ? "$periodXP" : "$xp",
-      level: 1,
-      currentStreak: 1,
-      longestStreak: 1,
-      challengesSolved: "$stats.challengesSolved",
-      puzzlesSolved: "$stats.puzzlesSolved",
-      badgeCount: { $size: "$badges" },
-    },
-  });
-
-  // ─── Run full pipeline for total count ──────────────────────────────
-  const fullResults = await Gamification.aggregate(pipeline);
-  const totalStudents = fullResults.length;
-
-  // ─── Find current user's rank ───────────────────────────────────────
-  let myRank = null;
-  if (userId) {
-    const myEntry = fullResults.find(
-      (r) => r.userId && r.userId.toString() === userId.toString(),
-    );
-    myRank = myEntry?.rank || null;
-  }
-
-  // ─── Paginate ───────────────────────────────────────────────────────
-  const leaderboard = fullResults.slice(skip, skip + limit);
+/**
+ * Build and execute the leaderboard aggregation pipeline.
+ *
+ * @param {Object} options
+ * @param {string} [options.period]  - "weekly" | "monthly" | "all_time" (default)
+ * @param {string} [options.metric]  - "xp" | "challenges" | "streak" (default: "xp")
+ * @param {string} [options.grade]   - Filter by student grade
+ * @param {number|string} [options.page]  - Page number (default: 1)
+ * @param {number|string} [options.limit] - Results per page (default: 20, max: 100)
+ * @param {string} [options.userId]  - Current user ID, for calculating "myRank"
+ * @returns {{ leaderboard, myRank, totalStudents, page, limit }}
+ */
+export const getLeaderboardService = async (options = {}) => {
+  const { page, limit, skip } = boundedPagination(options);
+  const ranked = await rankStudents(options);
 
   return {
-    leaderboard,
-    myRank,
-    totalStudents,
+    leaderboard: ranked.slice(skip, skip + limit),
+    myRank: options.userId ? ranked.find(isUser(options.userId))?.rank || null : null,
+    totalStudents: ranked.length,
     page,
     limit,
   };
@@ -204,24 +159,16 @@ export const getMyRankService = async (userId) => {
   const profile = await StudentProfile.findOne({ user: userId });
   if (!profile) throw new AppErrorHelper("Student profile not found", 404);
 
-  const result = await getLeaderboardService({
-    period: "all_time",
-    metric: "xp",
-    userId,
-    limit: 1000, // Need full list to find rank
-  });
+  const ranked = await rankStudents();
+  const myEntry = ranked.find(isUser(userId));
 
-  if (!result.myRank) {
-    return { rank: null, totalStudents: result.totalStudents, message: "No activity yet" };
+  if (!myEntry) {
+    return { rank: null, totalStudents: ranked.length, message: "No activity yet" };
   }
 
-  const myEntry = result.leaderboard.find(
-    (r) => r.userId && r.userId.toString() === userId.toString(),
-  );
-
   return {
-    rank: result.myRank,
-    totalStudents: result.totalStudents,
-    ...(myEntry || {}),
+    ...myEntry,
+    rank: myEntry.rank,
+    totalStudents: ranked.length,
   };
 };

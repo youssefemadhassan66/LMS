@@ -12,8 +12,8 @@ const getLeaderboardController = CatchAsync(async (req, res, next) => {
     period,
     metric,
     grade,
-    page: parseInt(page, 10) || 1,
-    limit: parseInt(limit, 10) || 20,
+    page,
+    limit,
     userId: req.user._id,
   });
 

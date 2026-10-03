@@ -6,6 +6,7 @@ import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
 import { recalculateAttendanceStreakService } from "./studentProfileServices.js";
 import { createNotificationService } from "./NotificationService.js";
+import { awardSessionAttendanceXP } from "./GamificationService.js";
 import { assertInstructorAssignedToProfile, getAssignedStudentProfilesService } from "./StudentInstructorAssignmentService.js";
 
 // ─── Notify student + parents when a meeting link is added/updated ───────────
@@ -368,6 +369,9 @@ const UpdateSessionByIdService = async (SessionId, data, currentUser) => {
     recalculateAttendanceStreakService(session.studentProfileId).catch(() => {});
   }
 
+  // findByIdAndUpdate skips the Session save hook that normally awards this.
+  await awardSessionAttendanceXP(session).catch((err) => console.error("[Session update] Gamification XP award failed:", err.message));
+
   // Notify student + parents when the meeting link is newly added or changed.
   const oldLink = oldSession.meetingLink || "";
   const newLink = session.meetingLink || "";
@@ -445,7 +449,20 @@ const getCalendarSessionsService = async (user) => {
 // ─── Auto-complete sessions that ended 2+ hours ago ──────────────────────────
 const autoCompleteStaleSessionsService = async () => {
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-  const result = await Session.updateMany({ status: "pending", date: { $lt: twoHoursAgo }, deletedAt: null }, { $set: { status: "completed" } });
+  const stale = await Session.find({ status: "pending", date: { $lt: twoHoursAgo }, deletedAt: null })
+    .select("_id")
+    .lean();
+  if (!stale.length) return 0;
+
+  const ids = stale.map((session) => session._id);
+  const result = await Session.updateMany({ _id: { $in: ids }, status: "pending" }, { $set: { status: "completed" } });
+
+  // updateMany skips the Session save hook, so award attendance XP here.
+  const completed = await Session.find({ _id: { $in: ids }, status: "completed" }).lean();
+  for (const session of completed) {
+    await awardSessionAttendanceXP(session).catch((err) => console.error("[Session auto-complete] Gamification XP award failed:", err.message));
+  }
+
   return result.modifiedCount;
 };
 
