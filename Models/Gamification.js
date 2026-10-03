@@ -6,25 +6,29 @@ import mongoose from "mongoose";
  */
 export const XP_PER_LEVEL = 100;
 
+export const levelForXP = (xp) => Math.floor(xp / XP_PER_LEVEL) + 1;
+
+export const XP_REASONS = [
+  "task_submit",
+  "task_submit_late",
+  "review_perfect",
+  "review_excellent",
+  "session_attended",
+  "streak_bonus",
+  "challenge_solved",
+  "puzzle_solved",
+  "exam_passed",
+  "badge_bonus",
+  "lesson_completed",
+];
+
 const xpEntrySchema = new mongoose.Schema(
   {
     amount: { type: Number, required: true },
     reason: {
       type: String,
       required: true,
-      enum: [
-        "task_submit",
-        "task_submit_late",
-        "review_perfect",
-        "review_excellent",
-        "session_attended",
-        "streak_bonus",
-        "challenge_solved",
-        "puzzle_solved",
-        "exam_passed",
-        "badge_bonus",
-        "lesson_completed",
-      ],
+      enum: XP_REASONS,
     },
     sourceId: { type: mongoose.Schema.ObjectId },
     awardedAt: { type: Date, default: Date.now },
@@ -72,7 +76,7 @@ gamificationSchema.index({ level: -1 });
 
 // Auto-calculate level before every save
 gamificationSchema.pre("save", function () {
-  this.level = Math.floor(this.xp / XP_PER_LEVEL) + 1;
+  this.level = levelForXP(this.xp);
 });
 
 const Gamification = mongoose.model("Gamification", gamificationSchema);

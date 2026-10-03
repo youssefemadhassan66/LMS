@@ -11,7 +11,7 @@ import { assertInstructorAssignedToProfile } from "../Services/StudentInstructor
 
 // ─── Get My Gamification Profile ──────────────────────────────────────────────
 const getMyGamificationProfileController = CatchAsync(async (req, res, next) => {
-  const profileId = await resolveStudentProfileId(req.user);
+  const profileId = await resolveStudentProfileId(req.user, req.query.studentProfileId);
   const data = await getProfileStats(profileId);
 
   res.status(200).json({
@@ -48,7 +48,7 @@ const getStudentGamificationProfileController = CatchAsync(async (req, res, next
 
 // ─── Get My XP History ────────────────────────────────────────────────────────
 const getMyXPHistoryController = CatchAsync(async (req, res, next) => {
-  const profileId = await resolveStudentProfileId(req.user);
+  const profileId = await resolveStudentProfileId(req.user, req.query.studentProfileId);
   const data = await getXPHistory(profileId, req.query);
 
   res.status(200).json({
@@ -59,7 +59,7 @@ const getMyXPHistoryController = CatchAsync(async (req, res, next) => {
 
 // ─── Get My Badges ────────────────────────────────────────────────────────────
 const getMyBadgesController = CatchAsync(async (req, res, next) => {
-  const profileId = await resolveStudentProfileId(req.user);
+  const profileId = await resolveStudentProfileId(req.user, req.query.studentProfileId);
   const badges = await getStudentBadges(profileId);
 
   res.status(200).json({

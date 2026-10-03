@@ -1,6 +1,9 @@
 import "dotenv/config";
 import mongoose from "mongoose";
 import Db_Connection from "../Configs/DbConfig.js";
+// Registered only for populate(): assignments and tasks reference these models.
+import "../Models/studentProfile.js";
+import "../Models/user.js";
 import ScheduleEntry from "../Models/ScheduleEntry.js";
 import Session from "../Models/Session.js";
 import StudentInstructorAssignment from "../Models/StudentInstructorAssignment.js";
