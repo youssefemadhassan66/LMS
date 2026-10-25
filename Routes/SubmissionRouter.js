@@ -2,6 +2,8 @@ import express from "express";
 import multer from "multer";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import { protectionController, restrictedToController } from "../Controllers/AuthController.js";
+import { validate } from "../Middleware/validate.js";
+import { codeRunSubmissionSchema } from "../Validation/codeExerciseValidation.js";
 
 import {
   createSubmissionController,
@@ -18,6 +20,7 @@ import {
   deleteSubmissionByIdController,
   updateSubmissionStatusController,
   submitTaskController,
+  submitTaskCodeController,
   reviewSubmissionController,
   uploadSubmissionFilesController,
   deleteSubmissionFileController,
@@ -64,6 +67,9 @@ router.get("/:id", getSubmissionByIdController);
 
 
 router.patch("/:id/submit", submitTaskController);
+
+// Code exercise: the browser sandbox sends the code and one stdout per test case
+router.post("/task/:taskId/code", restrictedToController("student"), validate(codeRunSubmissionSchema), submitTaskCodeController);
 
 router.post("/", createSubmissionController);
 

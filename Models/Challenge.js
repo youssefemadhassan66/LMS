@@ -1,13 +1,5 @@
 import mongoose from "mongoose";
-
-const testCaseSchema = new mongoose.Schema(
-  {
-    input: { type: String, required: true },
-    expectedOutput: { type: String, required: true },
-    isHidden: { type: Boolean, default: false },
-  },
-  { _id: false },
-);
+import { CODE_LANGUAGES, codeTestCaseSchema } from "./codeExerciseSchema.js";
 
 const challengeSchema = new mongoose.Schema(
   {
@@ -45,9 +37,14 @@ const challengeSchema = new mongoose.Schema(
 
     // ─── Coding-specific fields ─────────────────────────────────────────
     codingData: {
+      // Runs in the student's browser sandbox; challenges older than the
+      // sandbox have no language and are treated as python.
+      language: { type: String, enum: CODE_LANGUAGES },
       starterCode: { type: String },
       hints: [{ type: String }],
-      testCases: [testCaseSchema],
+      // Hidden from queries by default so ?filter/?sort can't probe hidden
+      // expected outputs; services opt in and redact per role.
+      testCases: { type: [codeTestCaseSchema], select: false, default: undefined },
     },
 
     xpReward: {

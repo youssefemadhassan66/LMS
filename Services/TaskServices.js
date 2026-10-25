@@ -7,6 +7,8 @@ import User from "../Models/user.js";
 import mongoose from "mongoose";
 import { createNotificationService } from "./NotificationService.js";
 import { assertInstructorAssignedToProfile, getAssignedStudentProfilesService } from "./StudentInstructorAssignmentService.js";
+import { parseCodeExercise } from "../Validation/codeExerciseValidation.js";
+import { testCasesForStudent } from "../Utilities/codeGrader.js";
 
 // ─── Notify student + parents when a task (or batch of tasks) is assigned ─────
 // Best-effort: failures are logged, never thrown so task creation never breaks.
@@ -74,6 +76,19 @@ const notifyNewTask = async (studentProfile, { instructorId, title, taskId, coun
 
 const documentId = (value) => value?._id || value;
 
+// Code exercise test cases are select:false; staff opt in to see all of them.
+const WITH_TEST_CASES = "+codeExercise.testCases";
+
+// Students and parents get every test input but only visible expected outputs.
+const redactTaskForStudent = (task) => {
+  if (!task) return task;
+  const obj = task.toObject();
+  if (obj.codeExercise?.testCases) {
+    obj.codeExercise.testCases = testCasesForStudent(obj.codeExercise.testCases);
+  }
+  return obj;
+};
+
 const assertCanManageTask = async (currentUser, task) => {
   if (currentUser?.role === "admin") return;
   if (currentUser?.role !== "instructor") {
@@ -90,7 +105,7 @@ const createTaskServices = async (data, currentUser) => {
     throw new AppErrorHelper("Data is missing!", 404);
   }
 
-  const { sessionId, studentProfileId, instructorId, title, dueDate, taskLinks, description, status } = data;
+  const { sessionId, studentProfileId, instructorId, title, dueDate, taskLinks, description, status, codeExercise } = data;
 
   const instructor = await User.findById(instructorId);
   const session = await Session.findById(sessionId);
@@ -138,6 +153,7 @@ const createTaskServices = async (data, currentUser) => {
     description: description || "",
     dueDate: dueDate || Date.now(),
     status: status,
+    codeExercise: codeExercise ? parseCodeExercise(codeExercise) : undefined,
   });
 
   await notifyNewTask(studentProfile, {
@@ -159,12 +175,12 @@ const getAllTasksService = async (queryString = {}, user = null) => {
     filter = { instructorId: user._id, studentProfileId: { $in: profileIds } };
   }
 
-  const features = new ApiFeatures(Task.find(filter), queryString).filter().sort().fields().pagination();
+  const features = new ApiFeatures(Task.find(filter).select(WITH_TEST_CASES), queryString).filter().sort().fields().pagination();
   return await features.mongooseQuery;
 };
 
 const getTaskByIdService = async (taskId, currentUser) => {
-  const task = await Task.findById(taskId);
+  const task = await Task.findById(taskId).select(WITH_TEST_CASES);
 
   if (!task) {
     throw new AppErrorHelper(" No task found ! ", 404);
@@ -211,7 +227,7 @@ const getMyTaskByIdService = async (userData, taskId) => {
       throw new AppErrorHelper("Not Allowed", 403);
     }
 
-    return await Task.findOne({ studentProfileId: studentProfile._id, _id: taskId });
+    return redactTaskForStudent(await Task.findOne({ studentProfileId: studentProfile._id, _id: taskId }).select(WITH_TEST_CASES));
   } else if (userData.role == "parent") {
     const childrenProfiles = await StudentProfile.find({ parents: userData._id });
 
@@ -220,7 +236,7 @@ const getMyTaskByIdService = async (userData, taskId) => {
     }
     const ProfilesIDs = childrenProfiles.map((profile) => profile._id);
 
-    return await Task.findOne({ studentProfileId: { $in: ProfilesIDs }, _id: taskId });
+    return redactTaskForStudent(await Task.findOne({ studentProfileId: { $in: ProfilesIDs }, _id: taskId }).select(WITH_TEST_CASES));
   } else {
     throw new AppErrorHelper("Not Allowed", 403);
   }
@@ -230,7 +246,7 @@ const getTasksBySessionIdService = async (sessionId, queryString = {}, currentUs
   const session = await Session.findById(sessionId);
   if (!session) throw new AppErrorHelper("Session not found!", 404);
   await assertCanManageTask(currentUser, session);
-  const features = new ApiFeatures(Task.find({ sessionId: sessionId }), queryString).filter().sort().fields().pagination();
+  const features = new ApiFeatures(Task.find({ sessionId: sessionId }).select(WITH_TEST_CASES), queryString).filter().sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
@@ -239,7 +255,7 @@ const getTasksByStudentIdService = async (studentProfileId, queryString = {}, cu
   if (currentUser?.role === "instructor") {
     await assertInstructorAssignedToProfile(currentUser._id, studentProfileId);
   }
-  const features = new ApiFeatures(Task.find({ studentProfileId: studentProfileId }), queryString).filter().sort().fields().pagination();
+  const features = new ApiFeatures(Task.find({ studentProfileId: studentProfileId }).select(WITH_TEST_CASES), queryString).filter().sort().fields().pagination();
 
   return await features.mongooseQuery;
 };
@@ -257,7 +273,14 @@ const updateTaskByIdService = async (TaskId, data, currentUser) => {
     new: true,
     runValidators: true,
   };
-  const task = await Task.findByIdAndUpdate(TaskId, editableData, options);
+  // null turns a code task back into a regular task
+  if (editableData.codeExercise === null) {
+    delete editableData.codeExercise;
+    editableData.$unset = { codeExercise: 1 };
+  } else if (editableData.codeExercise !== undefined) {
+    editableData.codeExercise = parseCodeExercise(editableData.codeExercise);
+  }
+  const task = await Task.findByIdAndUpdate(TaskId, editableData, options).select(WITH_TEST_CASES);
 
   if (!task) {
     throw new AppErrorHelper("Task not found!", 404);
@@ -453,7 +476,8 @@ const softDeleteTaskService = async (TaskId, currentUser) => {
 
 // ─── Bulk task assignment ─────────────────────────────────────────────────────
 const createBulkTasksService = async (data, currentUser) => {
-  const { sessionIds, studentProfileIds, title, description, dueDate, taskLinks, instructorId } = data;
+  const { sessionIds, studentProfileIds, title, description, dueDate, taskLinks, instructorId, codeExercise } = data;
+  const parsedCodeExercise = codeExercise ? parseCodeExercise(codeExercise) : undefined;
 
   if (!studentProfileIds?.length) throw new AppErrorHelper("studentProfileIds array is required", 400);
   if (!sessionIds?.length) throw new AppErrorHelper("sessionIds array is required", 400);
@@ -488,6 +512,7 @@ const createBulkTasksService = async (data, currentUser) => {
         description: description || "",
         dueDate: dueDate || Date.now(),
         taskLinks: taskLinks || [],
+        codeExercise: parsedCodeExercise,
         status: "pending",
         deletedAt: null,
       });

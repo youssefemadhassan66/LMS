@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { CODE_LANGUAGES } from "./codeExerciseSchema.js";
 
 const challengeAttemptSchema = new mongoose.Schema(
   {
@@ -19,6 +20,13 @@ const challengeAttemptSchema = new mongoose.Schema(
 
     // ─── Coding attempt fields ───────────────────────────────────────────
     submittedCode: { type: String },
+    language: { type: String, enum: CODE_LANGUAGES },
+    // Server-side comparison of the sandbox's outputs with every test case
+    testResults: {
+      passed: { type: Number, min: 0 },
+      total: { type: Number, min: 0 },
+      results: { type: [Boolean], default: undefined },
+    },
     codeLinks: [
       {
         name: { type: String, required: true },

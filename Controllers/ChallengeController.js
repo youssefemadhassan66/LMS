@@ -34,7 +34,7 @@ const createChallengeController = CatchAsync(async (req, res, next) => {
 });
 
 const getAllChallengesController = CatchAsync(async (req, res, next) => {
-  const challenges = await getAllChallengesService(req.query);
+  const challenges = await getAllChallengesService(req.query, req.user);
 
   res.status(200).json({
     status: "success",
@@ -111,7 +111,7 @@ const submitCodingChallengeController = CatchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    message: "Code submitted! Awaiting instructor review.",
+    message: attempt.status === "graded" ? `Auto-graded: ${attempt.score}/100.` : "Code submitted! Awaiting instructor review.",
     data: { attempt },
   });
 });
