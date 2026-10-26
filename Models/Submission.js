@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { CODE_LANGUAGES } from "./codeExerciseSchema.js";
 
 const SubmissionSchema = mongoose.Schema(
   {
@@ -23,6 +24,16 @@ const SubmissionSchema = mongoose.Schema(
     ],
     note: {
       type: String,
+    },
+    // Code exercise answer, graded server-side from the sandbox's outputs
+    code: {
+      language: { type: String, enum: CODE_LANGUAGES },
+      source: { type: String },
+      passed: { type: Number, min: 0 },
+      total: { type: Number, min: 0 },
+      score: { type: Number, min: 0, max: 100 },
+      results: { type: [Boolean], default: undefined },
+      submittedAt: { type: Date },
     },
     status: {
       type: String,
@@ -94,8 +105,9 @@ SubmissionSchema.pre("save", async function () {
   if (this.status === "Completed") {
     const hasLinks = this.Task_links && this.Task_links.length > 0;
     const hasFiles = this.fileAttachments && this.fileAttachments.length > 0;
-    if (!hasLinks && !hasFiles) {
-      throw new Error("At least one submission link or file is required when marking as Completed");
+    const hasCode = Boolean(this.code?.source);
+    if (!hasLinks && !hasFiles && !hasCode) {
+      throw new Error("At least one submission link, file, or code is required when marking as Completed");
     }
 
     this.SubmissionDate = new Date();

@@ -5,6 +5,7 @@ import { awardXP } from "./GamificationService.js";
 import { notifyStudentAndParents, notifyUsers, getStudentRecipients } from "./NotificationHelpers.js";
 import AppErrorHelper from "../Utilities/AppErrorHelper.js";
 import ApiFeatures from "../Utilities/ApiFeatures.js";
+import { gradeOutputs, testCasesForStudent } from "../Utilities/codeGrader.js";
 import mongoose from "mongoose";
 
 // ─── XP multipliers by difficulty ────────────────────────────────────────────
@@ -42,26 +43,44 @@ export const createChallengeService = async (data) => {
   });
 };
 
-export const getAllChallengesService = async (queryString = {}) => {
-  const features = new ApiFeatures(
-    Challenge.find({ isActive: true }).populate("createdBy", "FullName UserName"),
-    queryString,
-  )
-    .filter()
-    .sort()
-    .fields()
-    .pagination();
+const isStaff = (user) => Boolean(user && (user.role === "instructor" || user.role === "admin"));
+
+// Students run every test input in the browser sandbox but only see visible
+// expected outputs; hidden ones are compared server-side on submit.
+const redactHiddenTestCases = (challenge) => {
+  const obj = challenge.toObject();
+  if (obj.codingData?.testCases) {
+    obj.codingData.testCases = testCasesForStudent(obj.codingData.testCases);
+  }
+  return obj;
+};
+
+// Proportional XP for a 0-100 score, less 20% per hint used (max 80%)
+const xpForScore = (challenge, attempt, score) => {
+  let xp = Math.floor((challenge.xpReward * score) / 100);
+  if (xp > 0 && attempt.hintsUsed > 0) {
+    const penalty = Math.min(attempt.hintsUsed * HINT_PENALTY_PERCENT, 0.8);
+    xp = Math.max(Math.floor(xp * (1 - penalty)), 1);
+  }
+  return xp;
+};
+
+export const getAllChallengesService = async (queryString = {}, user) => {
+  let query = Challenge.find({ isActive: true }).populate("createdBy", "FullName UserName");
+
+  // The instructor edit form is filled from this list, so staff keep test cases
+  if (isStaff(user)) query = query.select("+codingData.testCases");
+
+  const features = new ApiFeatures(query, queryString).filter().sort().fields().pagination();
 
   return features.mongooseQuery;
 };
 
 export const getChallengeByIdService = async (id, user) => {
-  // Instructors/admins can see correct answers; students cannot
-  const isStaff = user && (user.role === "instructor" || user.role === "admin");
+  // Instructors/admins can see correct answers and hidden tests; students cannot
+  let query = Challenge.findById(id).populate("createdBy", "FullName UserName").select("+codingData.testCases");
 
-  let query = Challenge.findById(id).populate("createdBy", "FullName UserName");
-
-  if (isStaff) {
+  if (isStaff(user)) {
     // Select hidden fields for staff
     query = query.select("+puzzleData.correctAnswer");
   }
@@ -69,14 +88,14 @@ export const getChallengeByIdService = async (id, user) => {
   const challenge = await query;
   if (!challenge) throw new AppErrorHelper("Challenge not found", 404);
 
-  return challenge;
+  return isStaff(user) ? challenge : redactHiddenTestCases(challenge);
 };
 
 export const updateChallengeService = async (id, data) => {
   const challenge = await Challenge.findByIdAndUpdate(id, data, {
     new: true,
     runValidators: true,
-  });
+  }).select("+codingData.testCases");
 
   if (!challenge) throw new AppErrorHelper("Challenge not found", 404);
   return challenge;
@@ -197,7 +216,7 @@ export const submitCodingChallengeService = async (challengeId, studentProfileId
     throw new AppErrorHelper("This challenge has already been submitted", 400);
   }
 
-  const challenge = await Challenge.findById(challengeId);
+  const challenge = await Challenge.findById(challengeId).select("+codingData.testCases");
   if (!challenge || challenge.type !== "coding") {
     throw new AppErrorHelper("Invalid coding challenge", 400);
   }
@@ -205,6 +224,7 @@ export const submitCodingChallengeService = async (challengeId, studentProfileId
   const now = new Date();
 
   attempt.submittedCode = data.submittedCode || "";
+  attempt.language = challenge.codingData?.language || "python";
   attempt.codeLinks = data.codeLinks || [];
   attempt.hintsUsed = data.hintsUsed || attempt.hintsUsed;
   attempt.completedAt = now;
@@ -214,6 +234,28 @@ export const submitCodingChallengeService = async (challengeId, studentProfileId
   // Validate submission has content
   if (!attempt.submittedCode && (!attempt.codeLinks || !attempt.codeLinks.length)) {
     throw new AppErrorHelper("Submit code or at least one code link", 400);
+  }
+
+  // Sandbox outputs: grade now against every test case, hidden ones included
+  if (data.outputs) {
+    const testCases = challenge.codingData?.testCases || [];
+    if (!attempt.submittedCode) throw new AppErrorHelper("Submit the code that produced these outputs", 400);
+    if (data.outputs.length !== testCases.length) {
+      throw new AppErrorHelper(`Expected ${testCases.length} outputs, one per test case`, 400);
+    }
+
+    const { passed, total, score, results } = gradeOutputs(testCases, data.outputs);
+    attempt.testResults = { passed, total, results };
+    attempt.score = score;
+    attempt.status = "graded";
+    attempt.feedback = `Auto-graded: ${passed}/${total} tests passed.`;
+    attempt.xpAwarded = xpForScore(challenge, attempt, score);
+
+    await attempt.save();
+    if (attempt.xpAwarded > 0) {
+      await awardXP(studentProfileId, attempt.xpAwarded, "challenge_solved", challenge._id);
+    }
+    return attempt;
   }
 
   await attempt.save();

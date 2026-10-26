@@ -11,6 +11,7 @@ import {
   deleteSubmissionByIdService,
   updateSubmissionStatusService,
   submitTaskService,
+  submitTaskCodeService,
   reviewSubmissionService,
   getSubmissionStatsByStudentIdService,
   getTasksDueDateBucketsService,
@@ -228,6 +229,17 @@ const submitTaskController = CatchAsync(async (req, res, next) => {
  * PATCH /submissions/:id/review
 
  */
+const submitTaskCodeController = CatchAsync(async (req, res) => {
+  const submission = await submitTaskCodeService(req.params.taskId, req.body, req.user);
+  const { passed, total } = submission.code;
+
+  res.status(200).json({
+    status: "success",
+    message: passed === total ? "All tests passed — task completed!" : `${passed}/${total} tests passed. Fix the rest and submit again.`,
+    data: { submission },
+  });
+});
+
 const reviewSubmissionController = CatchAsync(async (req, res, next) => {
   const { score, comment } = req.body;
 
@@ -275,6 +287,7 @@ export {
   deleteSubmissionByIdController,
   updateSubmissionStatusController,
   submitTaskController,
+  submitTaskCodeController,
   reviewSubmissionController,
   uploadSubmissionFilesController,
   deleteSubmissionFileController,

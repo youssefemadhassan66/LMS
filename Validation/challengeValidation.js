@@ -1,4 +1,6 @@
 import Joi from "joi";
+import { CODE_LANGUAGES } from "../Models/codeExerciseSchema.js";
+import { MAX_OUTPUT_LENGTH, MAX_TEST_CASES } from "../Utilities/codeGrader.js";
 
 // ─── Create Challenge ─────────────────────────────────────────────────────────
 export const createChallengeSchema = Joi.object({
@@ -24,6 +26,9 @@ export const createChallengeSchema = Joi.object({
   codingData: Joi.when("type", {
     is: "coding",
     then: Joi.object({
+      language: Joi.string()
+        .valid(...CODE_LANGUAGES)
+        .default("python"),
       starterCode: Joi.string().allow(""),
       hints: Joi.array().items(Joi.string()).max(5).default([]),
       testCases: Joi.array()
@@ -62,6 +67,7 @@ export const updateChallengeSchema = Joi.object({
     correctAnswer: Joi.string(),
   }),
   codingData: Joi.object({
+    language: Joi.string().valid(...CODE_LANGUAGES),
     starterCode: Joi.string().allow(""),
     hints: Joi.array().items(Joi.string()).max(5),
     testCases: Joi.array()
@@ -93,6 +99,9 @@ export const submitCodingSchema = Joi.object({
     )
     .max(5),
   hintsUsed: Joi.number().integer().min(0),
+  // stdout of each test case from the browser sandbox; when present the
+  // attempt is graded automatically instead of waiting for an instructor
+  outputs: Joi.array().items(Joi.string().allow("").max(MAX_OUTPUT_LENGTH)).max(MAX_TEST_CASES),
 });
 
 // ─── Grade Coding Challenge ──────────────────────────────────────────────────

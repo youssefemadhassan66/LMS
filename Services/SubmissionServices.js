@@ -10,6 +10,7 @@ import { canAccessStudentProfile } from "./studentProfileServices.js";
 import { createNotificationService } from "./NotificationService.js";
 import { notifyStudentAndParents } from "./NotificationHelpers.js";
 import { getAssignedStudentProfilesService } from "./StudentInstructorAssignmentService.js";
+import { gradeOutputs } from "../Utilities/codeGrader.js";
 
 const VALID_STATUSES = ["Pending", "Completed", "Reviewed", "Resubmitted", "Late submission"];
 
@@ -315,6 +316,69 @@ const submitTaskService = async (submissionId, links, note, currentUser) => {
   return saved;
 };
 
+// ─── Code exercise: grade the sandbox's outputs and hand the task in ─────────
+// The student may retry until an instructor reviews the submission. The task
+// only counts as completed once every test case passes.
+const submitTaskCodeService = async (taskId, { code, outputs }, currentUser) => {
+  if (currentUser?.role !== "student") {
+    throw new AppErrorHelper("Only the student can submit this task", 403);
+  }
+  if (!mongoose.Types.ObjectId.isValid(taskId)) {
+    throw new AppErrorHelper("Task not found!", 404);
+  }
+
+  const profile = await StudentProfile.findOne({ user: currentUser._id }, { _id: 1 }).lean();
+  if (!profile) throw new AppErrorHelper("Student profile not found!", 404);
+
+  const task = await Task.findOne({ _id: taskId, studentProfileId: profile._id }).select("+codeExercise.testCases");
+  if (!task) throw new AppErrorHelper("Task not found!", 404);
+  if (!task.codeExercise?.language) {
+    throw new AppErrorHelper("This task has no code exercise", 400);
+  }
+  if (task.status === "canceled") {
+    throw new AppErrorHelper("This task was canceled", 400);
+  }
+
+  const testCases = task.codeExercise.testCases || [];
+  if (outputs.length !== testCases.length) {
+    throw new AppErrorHelper(`Expected ${testCases.length} outputs, one per test case`, 400);
+  }
+
+  const existing = await Submission.findOne({ task: task._id, studentProfileId: profile._id });
+  if (existing?.status === "Reviewed") {
+    throw new AppErrorHelper("Your instructor already reviewed this submission", 400);
+  }
+
+  const { passed, total, score, results } = gradeOutputs(testCases, outputs);
+  const submission = existing || new Submission({ task: task._id, studentProfileId: profile._id });
+  const wasSubmitted = SUBMITTED_STATUSES.includes(submission.status);
+
+  submission.code = {
+    language: task.codeExercise.language,
+    source: code,
+    passed,
+    total,
+    score,
+    results,
+    submittedAt: new Date(),
+  };
+  submission.status = "Completed";
+  submission.note = `Auto-check: ${passed}/${total} tests passed`;
+  // Auto score on the 0-10 review scale; an instructor review replaces it
+  submission.review.score = Math.round(score / 10);
+
+  const saved = await submission.save();
+
+  if (passed === total) {
+    await Task.findByIdAndUpdate(task._id, { status: "completed" });
+  }
+  if (!wasSubmitted) {
+    await notifyInstructorOfSubmission(saved);
+  }
+
+  return saved;
+};
+
 const reviewSubmissionService = async (submissionId, reviewData, currentUser) => {
   const submission = await Submission.findById(submissionId);
   if (!submission) {
@@ -581,6 +645,7 @@ export {
   updateSubmissionStatusService,
   deleteSubmissionByIdService,
   submitTaskService,
+  submitTaskCodeService,
   reviewSubmissionService,
   getSubmissionStatsByStudentIdService,
   getTasksDueDateBucketsService,

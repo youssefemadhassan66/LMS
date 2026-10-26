@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { CODE_LANGUAGES, codeTestCaseSchema } from "./codeExerciseSchema.js";
 
 const TaskSchema = new mongoose.Schema(
   {
@@ -16,6 +17,14 @@ const TaskSchema = new mongoose.Schema(
         link: { type: String },
       },
     ],
+    // Optional: the student solves this in the browser code sandbox and the
+    // submission is auto-graded. Tasks without a language are regular tasks.
+    codeExercise: {
+      language: { type: String, enum: CODE_LANGUAGES },
+      starterCode: { type: String },
+      // Hidden from queries by default; services opt in and redact per role
+      testCases: { type: [codeTestCaseSchema], select: false, default: undefined },
+    },
     dueDate: {
       type: Date,
       required: true,
